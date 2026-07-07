@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bisleri Daily Entry</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+<div class="container mt-4 mb-5">
+
+    <div class="card shadow">
+
+        <div class="card-header bg-success text-white">
+            <h3 class="text-center">Bisleri Daily Energy Entry</h3>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST">
+
+                <!-- Basic Information -->
+                <h5 class="text-success">Basic Information</h5>
+
+                <div class="row mb-3">
+
+                    <div class="col-md-6">
+                        <label>Date</label>
+                        <input type="date" name="date" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label>Batch Number</label>
+                        <input type="text" name="batch_no" class="form-control">
+                    </div>
+
+                </div>
+
+                <hr>
+
+                <!-- Generation Meter -->
+
+                <h5 class="text-success">Generation Meter</h5>
+
+                <div class="row">
+
+                    <div class="col-md-4">
+                        <label>Opening</label>
+                        <input type="number" step="0.01" id="generation_opening" name="generation_opening" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Closing</label>
+                        <input type="number" step="0.01" id="generation_closing" name="generation_closing" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Total (Auto)</label>
+                        <input type="number" id="generation_total" class="form-control" readonly>
+                    </div>
+
+                </div>
+
+                <br>
+
+                <!-- Import Meter -->
+
+                <h5 class="text-success">Import Meter</h5>
+
+                <div class="row">
+
+                    <div class="col-md-4">
+                        <label>Opening</label>
+                        <input type="number" step="0.01" id="import_opening" name="import_opening" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Closing</label>
+                        <input type="number" step="0.01" id="import_closing" name="import_closing" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Total (Auto)</label>
+                        <input type="number" id="import_total" class="form-control" readonly>
+                    </div>
+
+                </div>
+
+                <br>
+
+                <!-- Export Meter -->
+
+                <h5 class="text-success">Export Meter</h5>
+
+                <div class="row">
+
+                    <div class="col-md-4">
+                        <label>Opening</label>
+                        <input type="number" step="0.01" id="export_opening" name="export_opening" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Closing</label>
+                        <input type="number" step="0.01" id="export_closing" name="export_closing" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Total (Auto)</label>
+                        <input type="number" id="export_total" class="form-control" readonly>
+                    </div>
+
+                </div>
+
+                <br>
+
+                <!-- Consumption -->
+
+                <h5 class="text-success">Consumption</h5>
+
+                <input type="number" id="consumption" class="form-control" readonly>
+
+                <br>
+
+                <!-- Production -->
+
+                <h5 class="text-success">Production</h5>
+
+                <div class="row">
+
+                    <div class="col-md-4">
+                        <label>Production</label>
+                        <input type="number" name="production" class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Production Type</label>
+                        <input type="text" name="production_type" class="form-control">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label>Boxes</label>
+                        <input type="number" name="boxes" class="form-control">
+                    </div>
+
+                </div>
+
+                <hr>
+
+                <h5 class="text-success">Loss Details (Register Entry)</h5>
+                <p class="text-muted small">
+                    Enter Units and Rupees exactly as recorded in the physical register.
+                    Rupee values are NOT calculated by the software — they must be entered manually.
+                </p>
+
+                <!-- ===================== BLOWING ===================== -->
+                <div class="card mb-3">
+                    <div class="card-header bg-secondary text-white">Blowing</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label>Preform Units</label>
+                                <input type="number" class="form-control loss-unit" name="blowing_preform" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Preform Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="blowing_preform_rs" value="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== FILLING ===================== -->
+                <div class="card mb-3">
+                    <div class="card-header bg-secondary text-white">Filling</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label>Preform Units</label>
+                                <input type="number" class="form-control loss-unit" name="filling_preform" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Cap Units</label>
+                                <input type="number" class="form-control loss-unit" name="filling_cap" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Preform Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="filling_preform_rs" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Cap Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="filling_cap_rs" value="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== LABELING ===================== -->
+                <div class="card mb-3">
+                    <div class="card-header bg-secondary text-white">Labeling</div>
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col-md-4">
+                                <label>Bottle Units</label>
+                                <input type="number" class="form-control loss-unit" name="labeling_bottle" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label>Cap Units</label>
+                                <input type="number" class="form-control loss-unit" name="labeling_cap" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label>Sticker Units</label>
+                                <input type="number" class="form-control loss-unit" name="labeling_sticker" value="0">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label>Bottle Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="labeling_bottle_rs" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label>Cap Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="labeling_cap_rs" value="0">
+                            </div>
+                            <div class="col-md-4">
+                                <label>Sticker Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="labeling_sticker_rs" value="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== SHRINK ===================== -->
+                <div class="card mb-3">
+                    <div class="card-header bg-secondary text-white">Shrink</div>
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col-md-3">
+                                <label>Paper Units</label>
+                                <input type="number" class="form-control loss-unit" name="shrink_paper" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Bottle Units</label>
+                                <input type="number" class="form-control loss-unit" name="shrink_bottle" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Cap Units</label>
+                                <input type="number" class="form-control loss-unit" name="shrink_cap" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Sticker Units</label>
+                                <input type="number" class="form-control loss-unit" name="shrink_sticker" value="0">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label>Paper Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_paper_rs" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Bottle Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_bottle_rs" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Cap Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_cap_rs" value="0">
+                            </div>
+                            <div class="col-md-3">
+                                <label>Sticker Loss ₹</label>
+                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_sticker_rs" value="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===================== TOTALS (Auto, display only) ===================== -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label><strong>Total Loss Units (Auto)</strong></label>
+                        <input type="number" id="total_loss_units" class="form-control fw-bold" readonly>
+                    </div>
+                    <div class="col-md-6">
+                        <label><strong>Total Loss ₹ (Auto)</strong></label>
+                        <input type="number" id="total_loss_rs" class="form-control fw-bold" readonly>
+                    </div>
+                </div>
+
+                <button class="btn btn-success btn-lg w-100">
+                    Save Daily Entry
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+function calculate(){
+
+    // Meter calculations
+    let generation =
+    parseFloat(document.getElementById("generation_closing").value || 0)
+    -
+    parseFloat(document.getElementById("generation_opening").value || 0);
+
+    document.getElementById("generation_total").value = generation;
+
+    let imp =
+    parseFloat(document.getElementById("import_closing").value || 0)
+    -
+    parseFloat(document.getElementById("import_opening").value || 0);
+
+    document.getElementById("import_total").value = imp;
+
+    let exp =
+    parseFloat(document.getElementById("export_closing").value || 0)
+    -
+    parseFloat(document.getElementById("export_opening").value || 0);
+
+    document.getElementById("export_total").value = exp;
+
+    document.getElementById("consumption").value =
+    generation + imp - exp;
+
+    // Total Loss Units (simple addition, no rate multiplication)
+    let totalUnits = 0;
+    document.querySelectorAll(".loss-unit").forEach(function(input){
+        totalUnits += parseFloat(input.value || 0);
+    });
+    document.getElementById("total_loss_units").value = totalUnits;
+
+    // Total Loss ₹ (simple addition of manually entered rupee values)
+    let totalRs = 0;
+    document.querySelectorAll(".loss-rs").forEach(function(input){
+        totalRs += parseFloat(input.value || 0);
+    });
+    document.getElementById("total_loss_rs").value = totalRs.toFixed(2);
+
+}
+
+document.querySelectorAll("input").forEach(function(item){
+    item.addEventListener("input", calculate);
+});
+
+// Initial calculation on load
+calculate();
+
+</script>
+
+</body>
+</html>

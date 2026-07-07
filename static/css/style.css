@@ -1,0 +1,19 @@
+body{
+    background:#f5f7fa;
+}
+
+.card{
+    border-radius:15px;
+}
+
+.card-body{
+    text-align:center;
+}
+
+.navbar{
+    padding:15px;
+}
+
+h2{
+    font-weight:bold;
+}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2 class="mb-4">AI Prediction (Next 30 Days)</h2>
+
+{% if message %}
+
+<div class="alert alert-warning">
+    {{ message }}
+</div>
+
+{% else %}
+
+<div class="row">
+
+    <div class="col-md-4">
+
+        <div class="card shadow border-success">
+
+            <div class="card-body text-center">
+
+                <h5>Predicted Production</h5>
+
+                <h2 class="text-success">
+                    {{ total_prediction }}
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-4">
+
+        <div class="card shadow border-danger">
+
+            <div class="card-body text-center">
+
+                <h5>Predicted Loss (30 Days)</h5>
+
+                <h2 class="text-danger">
+
+                    ₹ {{ "%.2f"|format(predicted_loss) }}
+
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-4">
+
+        <div class="card shadow border-primary">
+
+            <div class="card-body text-center">
+
+                <h5>Predicted Profit (30 Days)</h5>
+
+                <h2 class="text-primary">
+
+                    ₹ {{ "%.2f"|format(predicted_profit) }}
+
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<br>
+
+<h4>Daily Production Prediction</h4>
+
+<table class="table table-bordered table-striped">
+
+    <thead class="table-success">
+
+        <tr>
+
+            <th>Day</th>
+
+            <th>Predicted Production</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+    {% for value in predictions %}
+
+    <tr>
+
+        <td>{{ loop.index }}</td>
+
+        <td>{{ value|round(0) }}</td>
+
+    </tr>
+
+    {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% endif %}
+
+{% endblock %}

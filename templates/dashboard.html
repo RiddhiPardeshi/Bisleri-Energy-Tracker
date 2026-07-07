@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2 class="mb-4">
+    Dashboard
+</h2>
+
+<div class="row">
+
+    <div class="col-md-3">
+
+        <div class="card shadow border-0">
+
+            <div class="card-body">
+
+                <h5>Today's Production</h5>
+
+                <h2 class="text-success">
+                    {{ total_production }}
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-3">
+
+        <div class="card shadow border-0">
+
+            <div class="card-body">
+
+                <h5>Consumption</h5>
+
+                <h2 class="text-primary">
+                   {{ "%.2f"|format(total_consumption) }}
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-3">
+
+        <div class="card shadow border-0">
+
+            <div class="card-body">
+
+                <h5>Total Loss</h5>
+
+                <h2 class="text-danger">
+                    ₹{{ "%.2f"|format(total_loss) }}
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-3">
+
+        <div class="card shadow border-0">
+
+            <div class="card-body">
+
+                <h5>Efficiency</h5>
+
+                <h2 class="text-warning">
+                    {{ "%.2f"|format(efficiency) }}%
+                </h2>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<br>
+
+<div class="card shadow">
+
+<div class="card-header bg-success text-white">
+
+Today's Summary
+
+</div>
+
+<div class="card-body">
+
+<p>✔ Automatic meter calculations</p>
+
+<p>✔ Daily production tracking</p>
+
+<p>✔ Loss monitoring</p>
+
+<p>✔ AI prediction</p>
+
+<p>✔ Monthly analysis</p>
+
+</div>
+
+</div>
+
+{% endblock %}
