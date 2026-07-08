@@ -1,13 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for
-from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, flash
+from datetime import datetime, date
 
 from config import Config
-from models import db, DailyEntry
-import pandas as pd
-import numpy as np
-
-from sklearn.linear_model import LinearRegression
 from models import db, DailyEntry, Expense
+
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
@@ -18,19 +14,41 @@ db.init_app(app)
 
 
 # -----------------------------
+# Helper Functions
+# -----------------------------
+
+def parse_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def parse_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+# -----------------------------
 # Dashboard
 # -----------------------------
 @app.route("/")
 def dashboard():
 
-    entries = DailyEntry.query.all()
+    today_date = date.today()
 
-    total_production = sum(entry.production or 0 for entry in entries)
-    total_consumption = sum(entry.consumption or 0 for entry in entries)
-    total_loss = sum(entry.total_loss_rs or 0 for entry in entries)
+    today_entry = DailyEntry.query.filter_by(date=today_date).first()
 
-    if total_consumption > 0:
-        efficiency = ((total_consumption - total_loss) / total_consumption) * 100
+    total_production = today_entry.production if today_entry else 0
+    total_consumption = today_entry.consumption if today_entry else 0
+    total_loss = today_entry.total_loss_rs if today_entry else 0
+
+    if today_entry and today_entry.consumption:
+        efficiency = (
+            (today_entry.production or 0) / today_entry.consumption * 100
+        )
     else:
         efficiency = 0
 
@@ -49,112 +67,93 @@ def dashboard():
 @app.route("/add", methods=["GET", "POST"])
 def add_entry():
 
+    last_entry = DailyEntry.query.order_by(DailyEntry.id.desc()).first()
+    today_str = date.today().strftime("%Y-%m-%d")
+
+    # Auto-generated batch number
+    next_batch_no = f"BSL-{DailyEntry.query.count() + 1:04d}"
+
     if request.method == "POST":
 
-        # Meter Readings
-        generation_opening = float(request.form["generation_opening"])
-        generation_closing = float(request.form["generation_closing"])
+        error = None
 
-        import_opening = float(request.form["import_opening"])
-        import_closing = float(request.form["import_closing"])
+        generation_opening = (last_entry.generation_closing if last_entry else 0.0) or 0.0
+        import_opening = (last_entry.import_closing if last_entry else 0.0) or 0.0
+        export_opening = (last_entry.export_closing if last_entry else 0.0) or 0.0
 
-        export_opening = float(request.form["export_opening"])
-        export_closing = float(request.form["export_closing"])
+        generation_closing = parse_float(request.form.get("generation_closing"), None)
+        import_closing = parse_float(request.form.get("import_closing"), None)
+        export_closing = parse_float(request.form.get("export_closing"), None)
 
-        # Automatic Meter Calculation
+        if generation_closing is None or import_closing is None or export_closing is None:
+            error = "Please enter all closing meter readings."
+        elif generation_closing < generation_opening:
+            error = "Generation Closing cannot be smaller than Generation Opening."
+        elif import_closing < import_opening:
+            error = "Import Closing cannot be smaller than Import Opening."
+        elif export_closing < export_opening:
+            error = "Export Closing cannot be smaller than Export Opening."
+
+        if error:
+            return render_template(
+                "add_entry.html",
+                last_entry=last_entry,
+                today=request.form.get("date", today_str),
+                form_data=request.form,
+                next_batch_no=next_batch_no,
+                error=error
+            )
+
+        # Meter Calculations
         generation_total = generation_closing - generation_opening
         import_total = import_closing - import_opening
         export_total = export_closing - export_opening
-
         consumption = generation_total + import_total - export_total
 
         # Production
-        production = int(request.form["production"])
-        production_type = request.form["production_type"]
-        boxes = int(request.form["boxes"]) if request.form["boxes"] else 0
+        production = parse_int(request.form.get("production"), 0)
+        production_type = request.form.get("production_type", "")
+        boxes = parse_int(request.form.get("boxes"), 0)
 
-        # -----------------------------------------
-        # Loss Data - UNITS (entered by operator)
-        # -----------------------------------------
-        blowing_preform = int(request.form["blowing_preform"] or 0)
+        # Loss Data - Units
+        blowing_preform = parse_int(request.form.get("blowing_preform"))
+        filling_preform = parse_int(request.form.get("filling_preform"))
+        filling_cap = parse_int(request.form.get("filling_cap"))
+        labeling_bottle = parse_int(request.form.get("labeling_bottle"))
+        labeling_cap = parse_int(request.form.get("labeling_cap"))
+        labeling_sticker = parse_int(request.form.get("labeling_sticker"))
+        shrink_paper = parse_int(request.form.get("shrink_paper"))
+        shrink_bottle = parse_int(request.form.get("shrink_bottle"))
+        shrink_cap = parse_int(request.form.get("shrink_cap"))
+        shrink_sticker = parse_int(request.form.get("shrink_sticker"))
 
-        filling_preform = int(request.form["filling_preform"] or 0)
-        filling_cap = int(request.form["filling_cap"] or 0)
+        # Loss Data - Rupees
+        blowing_preform_rs = parse_float(request.form.get("blowing_preform_rs"))
+        filling_preform_rs = parse_float(request.form.get("filling_preform_rs"))
+        filling_cap_rs = parse_float(request.form.get("filling_cap_rs"))
+        labeling_bottle_rs = parse_float(request.form.get("labeling_bottle_rs"))
+        labeling_cap_rs = parse_float(request.form.get("labeling_cap_rs"))
+        labeling_sticker_rs = parse_float(request.form.get("labeling_sticker_rs"))
+        shrink_paper_rs = parse_float(request.form.get("shrink_paper_rs"))
+        shrink_bottle_rs = parse_float(request.form.get("shrink_bottle_rs"))
+        shrink_cap_rs = parse_float(request.form.get("shrink_cap_rs"))
+        shrink_sticker_rs = parse_float(request.form.get("shrink_sticker_rs"))
 
-        labeling_bottle = int(request.form["labeling_bottle"] or 0)
-        labeling_cap = int(request.form["labeling_cap"] or 0)
-        labeling_sticker = int(request.form["labeling_sticker"] or 0)
-
-        shrink_paper = int(request.form["shrink_paper"] or 0)
-        shrink_bottle = int(request.form["shrink_bottle"] or 0)
-        shrink_cap = int(request.form["shrink_cap"] or 0)
-        shrink_sticker = int(request.form["shrink_sticker"] or 0)
-
-        # -----------------------------------------
-        # Loss Data - RUPEES (entered by operator,
-        # exactly like the physical register)
-        # -----------------------------------------
-        blowing_preform_rs = float(request.form["blowing_preform_rs"] or 0)
-
-        filling_preform_rs = float(request.form["filling_preform_rs"] or 0)
-        filling_cap_rs = float(request.form["filling_cap_rs"] or 0)
-
-        labeling_bottle_rs = float(request.form["labeling_bottle_rs"] or 0)
-        labeling_cap_rs = float(request.form["labeling_cap_rs"] or 0)
-        labeling_sticker_rs = float(request.form["labeling_sticker_rs"] or 0)
-
-        shrink_paper_rs = float(request.form["shrink_paper_rs"] or 0)
-        shrink_bottle_rs = float(request.form["shrink_bottle_rs"] or 0)
-        shrink_cap_rs = float(request.form["shrink_cap_rs"] or 0)
-        shrink_sticker_rs = float(request.form["shrink_sticker_rs"] or 0)
-
-        # -----------------------------------------
-        # Total Loss Units (simple addition)
-        # -----------------------------------------
         total_loss_units = (
-            blowing_preform +
-            filling_preform +
-            filling_cap +
-            labeling_bottle +
-            labeling_cap +
-            labeling_sticker +
-            shrink_paper +
-            shrink_bottle +
-            shrink_cap +
-            shrink_sticker
+            blowing_preform + filling_preform + filling_cap +
+            labeling_bottle + labeling_cap + labeling_sticker +
+            shrink_paper + shrink_bottle + shrink_cap + shrink_sticker
         )
 
-        # -----------------------------------------
-        # Total Loss ₹ (simple addition - NO RATE
-        # MULTIPLICATION, exactly like the physical
-        # register where the operator writes the
-        # rupee value directly)
-        # -----------------------------------------
         total_loss_rs = (
-            blowing_preform_rs +
-
-            filling_preform_rs +
-            filling_cap_rs +
-
-            labeling_bottle_rs +
-            labeling_cap_rs +
-            labeling_sticker_rs +
-
-            shrink_paper_rs +
-            shrink_bottle_rs +
-            shrink_cap_rs +
-            shrink_sticker_rs
+            blowing_preform_rs + filling_preform_rs + filling_cap_rs +
+            labeling_bottle_rs + labeling_cap_rs + labeling_sticker_rs +
+            shrink_paper_rs + shrink_bottle_rs + shrink_cap_rs + shrink_sticker_rs
         )
 
-        # Save Record
         entry = DailyEntry(
-
-            date=datetime.strptime(
-                request.form["date"],
-                "%Y-%m-%d"
-            ).date(),
-
-            batch_no=request.form["batch_no"],
+            date=datetime.strptime(request.form["date"], "%Y-%m-%d").date(),
+            batch_no=request.form.get("batch_no", ""),
 
             generation_opening=generation_opening,
             generation_closing=generation_closing,
@@ -174,12 +173,9 @@ def add_entry():
             production_type=production_type,
             boxes=boxes,
 
-            # Units
             blowing_preform=blowing_preform,
-
             filling_preform=filling_preform,
             filling_cap=filling_cap,
-
             labeling_bottle=labeling_bottle,
             labeling_cap=labeling_cap,
             labeling_sticker=labeling_sticker,
@@ -189,12 +185,9 @@ def add_entry():
             shrink_cap=shrink_cap,
             shrink_sticker=shrink_sticker,
 
-            # Rupees (manually entered)
             blowing_preform_rs=blowing_preform_rs,
-
             filling_preform_rs=filling_preform_rs,
             filling_cap_rs=filling_cap_rs,
-
             labeling_bottle_rs=labeling_bottle_rs,
             labeling_cap_rs=labeling_cap_rs,
             labeling_sticker_rs=labeling_sticker_rs,
@@ -204,19 +197,27 @@ def add_entry():
             shrink_cap_rs=shrink_cap_rs,
             shrink_sticker_rs=shrink_sticker_rs,
 
-            # Totals
             total_loss_units=total_loss_units,
             total_loss_rs=total_loss_rs
-
         )
 
         db.session.add(entry)
         db.session.commit()
 
+        flash("Daily Entry Saved Successfully.", "success")
+
+        # Redirect to Records page
         return redirect(url_for("records"))
 
-    return render_template("add_entry.html")
-
+    # GET Request
+    return render_template(
+        "add_entry.html",
+        last_entry=last_entry,
+        today=today_str,
+        form_data={},
+        next_batch_no=next_batch_no,
+        error=None
+    )
 
 # -----------------------------
 # Records
@@ -248,43 +249,31 @@ def analysis():
     total_loss_rs = sum(entry.total_loss_rs or 0 for entry in entries)
 
     if total_records > 0:
-
         avg_production = total_production / total_records
         avg_consumption = total_consumption / total_records
         avg_loss_units = total_loss_units / total_records
         avg_loss_rs = total_loss_rs / total_records
-
     else:
-
         avg_production = 0
         avg_consumption = 0
         avg_loss_units = 0
         avg_loss_rs = 0
 
     return render_template(
-
         "analysis.html",
-
         total_records=total_records,
-
         total_production=total_production,
-
         total_consumption=total_consumption,
-
         total_loss_units=total_loss_units,
-
         total_loss_rs=total_loss_rs,
-
         avg_production=avg_production,
-
         avg_consumption=avg_consumption,
-
         avg_loss_units=avg_loss_units,
-
         avg_loss_rs=avg_loss_rs
-
     )
-    # -----------------------------
+
+
+# -----------------------------
 # Add Expense
 # -----------------------------
 @app.route("/add_expense", methods=["GET", "POST"])
@@ -293,18 +282,13 @@ def add_expense():
     if request.method == "POST":
 
         expense = Expense(
-
             date=datetime.strptime(
                 request.form["date"],
                 "%Y-%m-%d"
             ).date(),
-
             description=request.form["description"],
-
             amount=float(request.form["amount"]),
-
             payment_mode=request.form["payment_mode"]
-
         )
 
         db.session.add(expense)
@@ -326,19 +310,18 @@ def expenses():
     total_expense = sum(e.amount for e in expenses)
 
     return render_template(
-
         "expenses.html",
-
         expenses=expenses,
-
         total_expense=total_expense
-
     )
 
+
+# -----------------------------
+# Prediction
+# -----------------------------
 @app.route("/prediction")
 def prediction():
 
-    # Fetch all daily entries
     entries = DailyEntry.query.order_by(DailyEntry.date).all()
 
     if len(entries) == 0:
@@ -347,22 +330,12 @@ def prediction():
             message="No records found."
         )
 
-    # -----------------------------
-    # Historical Production
-    # -----------------------------
     production = [e.production or 0 for e in entries]
-
     average_production = sum(production) / len(production)
 
-    # -----------------------------
-    # Production Prediction
-    # -----------------------------
     if len(entries) < 3:
-
         future_prediction = [round(average_production, 2)] * 30
-
     else:
-
         X = np.arange(len(entries)).reshape(-1, 1)
         y = np.array(production)
 
@@ -380,30 +353,17 @@ def prediction():
         maximum = average_production * 1.2
 
         future_prediction = [
-            round(
-                min(max(value, minimum), maximum),
-                2
-            )
+            round(min(max(value, minimum), maximum), 2)
             for value in future_prediction
         ]
 
-    # Total Production for next 30 days
     total_prediction = round(sum(future_prediction), 2)
 
-    # -----------------------------
-    # Predict Monthly Loss
-    # -----------------------------
     total_loss = sum(e.total_loss_rs or 0 for e in entries)
-
     average_daily_loss = total_loss / len(entries)
-
     predicted_loss = average_daily_loss * 30
 
-    # -----------------------------
-    # Predict Monthly Expenses
-    # -----------------------------
     expenses = Expense.query.all()
-
     total_expense = sum(e.amount or 0 for e in expenses)
 
     if len(expenses) > 0:
@@ -413,16 +373,9 @@ def prediction():
 
     predicted_expense = average_daily_expense * 30
 
-    # -----------------------------
-    # Revenue Prediction
-    # -----------------------------
     SELLING_PRICE_PER_BOTTLE = 12
-
     predicted_revenue = total_prediction * SELLING_PRICE_PER_BOTTLE
 
-    # -----------------------------
-    # Profit Prediction
-    # -----------------------------
     predicted_profit = (
         predicted_revenue
         - predicted_loss
@@ -436,6 +389,8 @@ def prediction():
         predicted_loss=round(predicted_loss, 2),
         predicted_profit=round(predicted_profit, 2)
     )
+
+
 # -----------------------------
 # Main
 # -----------------------------
