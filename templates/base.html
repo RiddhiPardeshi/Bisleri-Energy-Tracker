@@ -32,18 +32,35 @@
 
         <div>
 
-            <a href="/" class="btn btn-success text-white">Dashboard</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-success text-white">
+        Dashboard
+    </a>
 
-            <a href="/add" class="btn btn-success text-white">Add Entry</a>
+    <a href="{{ url_for('add_entry') }}" class="btn btn-success text-white">
+        Add Entry
+    </a>
 
-            <a href="/records" class="btn btn-success text-white">Records</a>
+    <a href="{{ url_for('records') }}" class="btn btn-success text-white">
+        Records
+    </a>
 
-            <a href="/analysis" class="btn btn-success text-white">Analysis</a>
+    <a href="{{ url_for('stock') }}" class="btn btn-success text-white">
+        Stock
+    </a>
 
-            <a href="/prediction" class="btn btn-success text-white">Prediction</a>
+    <a href="{{ url_for('analysis') }}" class="btn btn-success text-white">
+        Analysis
+    </a>
 
-        </div>
+    <a href="{{ url_for('prediction') }}" class="btn btn-success text-white">
+        Prediction
+    </a>
 
+    <a href="{{ url_for('logout') }}" class="btn btn-success text-white">
+        Logout
+    </a>
+
+</div>
     </div>
 
 </nav>

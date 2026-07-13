@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2 class="mb-4">
+    Stock Inventory
+</h2>
+
+<a href="/add_stock" class="btn btn-success mb-3">
+    Add Stock
+</a>
+
+<table class="table table-bordered table-hover">
+
+    <thead class="table-success">
+
+        <tr>
+
+            <th>Item</th>
+
+            <th>Category</th>
+
+            <th>Opening</th>
+
+            <th>Stock In</th>
+
+            <th>Stock Out</th>
+
+            <th>Closing</th>
+
+            <th>Unit</th>
+
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+        {% for s in stocks %}
+
+        <tr>
+
+            <td>{{ s.item_name }}</td>
+
+            <td>{{ s.category }}</td>
+
+            <td>{{ s.opening_stock }}</td>
+
+            <td>{{ s.stock_in }}</td>
+
+            <td>{{ s.stock_out }}</td>
+
+            <td>
+                <b>{{ s.closing_stock }}</b>
+            </td>
+
+            <td>{{ s.unit }}</td>
+
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% endblock %}

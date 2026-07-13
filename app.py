@@ -1,11 +1,24 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash
+)
+
 from datetime import datetime, date
 
 from config import Config
-from models import db, DailyEntry, Expense
+from models import db, DailyEntry, Expense, Admin, Stock
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from functools import wraps
+
+
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -30,11 +43,102 @@ def parse_int(value, default=0):
     except (TypeError, ValueError):
         return default
 
+# -----------------------------
+# Login Required Decorator
+# -----------------------------
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+
+        if "admin_id" not in session:
+            flash("Please login first.", "warning")
+            return redirect(url_for("login"))
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+
+# -----------------------------
+# Admin Login
+# -----------------------------
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "POST":
+
+        username = request.form["username"]
+        password = request.form["password"]
+
+        admin = Admin.query.filter_by(username=username).first()
+
+        if admin and admin.check_password(password):
+
+            session["admin_id"] = admin.id
+            session["username"] = admin.username
+            print(session)
+
+            flash("Login Successful", "success")
+
+            return redirect(url_for("dashboard"))
+
+        flash("Invalid Username or Password", "danger")
+
+    return render_template("login.html")
+  # -----------------------------
+# Register Admin
+# -----------------------------
+@app.route("/register", methods=["GET", "POST"])
+def register():
+
+    if request.method == "POST":
+
+        username = request.form["username"]
+        password = request.form["password"]
+
+        existing = Admin.query.filter_by(username=username).first()
+
+        if existing:
+            flash("Username already exists!", "danger")
+            return redirect(url_for("register"))
+
+        admin = Admin(username=username)
+        admin.set_password(password)
+
+        db.session.add(admin)
+        db.session.commit()
+
+        flash("Account Created Successfully. Please Login.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+
+# -----------------------------
+# Logout
+# -----------------------------
+@app.route("/logout")
+def logout():
+
+    session.clear()
+
+    flash("Logged Out Successfully", "success")
+
+    return redirect(url_for("login"))
+
+
+
+
+@app.route("/")
+def home():
+    return redirect(url_for("login"))
 
 # -----------------------------
 # Dashboard
 # -----------------------------
-@app.route("/")
+@app.route("/dashboard")
+@login_required
 def dashboard():
 
     today_date = date.today()
@@ -60,11 +164,11 @@ def dashboard():
         efficiency=efficiency
     )
 
-
 # -----------------------------
 # Add Daily Entry
 # -----------------------------
 @app.route("/add", methods=["GET", "POST"])
+@login_required
 def add_entry():
 
     last_entry = DailyEntry.query.order_by(DailyEntry.id.desc()).first()
@@ -223,6 +327,7 @@ def add_entry():
 # Records
 # -----------------------------
 @app.route("/records")
+@login_required
 def records():
 
     entries = DailyEntry.query.all()
@@ -234,9 +339,57 @@ def records():
 
 
 # -----------------------------
+# Stock Module
+# -----------------------------
+@app.route("/stock")
+@login_required
+def stock():
+
+    stocks = Stock.query.all()
+
+    return render_template(
+        "stock.html",
+        stocks=stocks
+    )
+
+
+@app.route("/add_stock", methods=["GET", "POST"])
+@login_required
+def add_stock():
+
+    if request.method == "POST":
+
+        opening = int(request.form["opening_stock"])
+        stock_in = int(request.form["stock_in"])
+        stock_out = int(request.form["stock_out"])
+
+        closing = opening + stock_in - stock_out
+
+        item = Stock(
+            item_name=request.form["item_name"],
+            category=request.form["category"],
+            opening_stock=opening,
+            stock_in=stock_in,
+            stock_out=stock_out,
+            closing_stock=closing,
+            unit=request.form["unit"]
+        )
+
+        db.session.add(item)
+        db.session.commit()
+
+        flash("Stock Added Successfully", "success")
+
+        return redirect(url_for("stock"))
+
+    return render_template("add_stock.html")
+
+
+# -----------------------------
 # Analysis
 # -----------------------------
 @app.route("/analysis")
+@login_required
 def analysis():
 
     entries = DailyEntry.query.all()
@@ -277,6 +430,7 @@ def analysis():
 # Add Expense
 # -----------------------------
 @app.route("/add_expense", methods=["GET", "POST"])
+@login_required
 def add_expense():
 
     if request.method == "POST":
@@ -303,6 +457,7 @@ def add_expense():
 # Expense Records
 # -----------------------------
 @app.route("/expenses")
+@login_required
 def expenses():
 
     expenses = Expense.query.order_by(Expense.date.desc()).all()
@@ -320,6 +475,7 @@ def expenses():
 # Prediction
 # -----------------------------
 @app.route("/prediction")
+@login_required
 def prediction():
 
     entries = DailyEntry.query.order_by(DailyEntry.date).all()
@@ -398,6 +554,20 @@ import os
 
 with app.app_context():
     db.create_all()
+
+    if not Admin.query.filter_by(username="admin").first():
+
+        admin = Admin(
+            username="admin"
+        )
+
+        admin.set_password("admin123")
+
+        db.session.add(admin)
+        db.session.commit()
+
+        print("Default Admin Created")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
