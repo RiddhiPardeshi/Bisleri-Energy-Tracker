@@ -77,7 +77,7 @@ def login():
 
             session["admin_id"] = admin.id
             session["username"] = admin.username
-            print(session)
+            
 
             flash("Login Successful", "success")
 
@@ -132,8 +132,9 @@ def logout():
 
 @app.route("/")
 def home():
+    if "admin_id" in session:
+        return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
-
 # -----------------------------
 # Dashboard
 # -----------------------------
