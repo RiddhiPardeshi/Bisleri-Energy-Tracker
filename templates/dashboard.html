@@ -1,110 +1,70 @@
 {% extends "base.html" %}
 
+{% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
 
-<h2 class="mb-4">
-    Dashboard
-</h2>
-
-<div class="row">
+<div class="row g-3">
 
     <div class="col-md-3">
-
-        <div class="card shadow border-0">
-
-            <div class="card-body">
-
-                <h5>Today's Production</h5>
-
-                <h2 class="text-success">
-                    {{ total_production }}
-                </h2>
-
-            </div>
-
+        <div class="meter-card accent-teal">
+            <div class="meter-label"><i class="bi bi-box-seam"></i> Today's Production</div>
+            <div class="meter-value">{{ total_production }}</div>
+            <div class="meter-unit">units</div>
         </div>
-
     </div>
 
     <div class="col-md-3">
-
-        <div class="card shadow border-0">
-
-            <div class="card-body">
-
-                <h5>Consumption</h5>
-
-                <h2 class="text-primary">
-                   {{ "%.2f"|format(total_consumption) }}
-                </h2>
-
-            </div>
-
+        <div class="meter-card accent-blue">
+            <div class="meter-label"><i class="bi bi-lightning-charge"></i> Consumption</div>
+            <div class="meter-value">{{ "%.2f"|format(total_consumption) }}</div>
+            <div class="meter-unit">kWh</div>
         </div>
-
     </div>
 
     <div class="col-md-3">
-
-        <div class="card shadow border-0">
-
-            <div class="card-body">
-
-                <h5>Total Loss</h5>
-
-                <h2 class="text-danger">
-                    ₹{{ "%.2f"|format(total_loss) }}
-                </h2>
-
-            </div>
-
+        <div class="meter-card accent-danger">
+            <div class="meter-label"><i class="bi bi-exclamation-triangle"></i> Total Loss</div>
+            <div class="meter-value">₹{{ "%.2f"|format(total_loss) }}</div>
+            <div class="meter-unit">today</div>
         </div>
-
     </div>
 
     <div class="col-md-3">
-
-        <div class="card shadow border-0">
-
-            <div class="card-body">
-
-                <h5>Efficiency</h5>
-
-                <h2 class="text-warning">
-                    {{ "%.2f"|format(efficiency) }}%
-                </h2>
-
-            </div>
-
+        <div class="meter-card accent-amber">
+            <div class="meter-label"><i class="bi bi-speedometer2"></i> Efficiency</div>
+            <div class="meter-value">{{ "%.2f"|format(efficiency) }}%</div>
+            <div class="meter-unit">plant efficiency</div>
         </div>
-
     </div>
 
 </div>
 
-<br>
+<div class="card shadow-sm mt-4">
 
-<div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <i class="bi bi-check2-circle"></i> Today's Summary
+    </div>
 
-<div class="card-header bg-success text-white">
-
-Today's Summary
-
-</div>
-
-<div class="card-body">
-
-<p>✔ Automatic meter calculations</p>
-
-<p>✔ Daily production tracking</p>
-
-<p>✔ Loss monitoring</p>
-
-<p>✔ AI prediction</p>
-
-<p>✔ Monthly analysis</p>
-
-</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6 col-lg-4 d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success"></i> Automatic meter calculations
+            </div>
+            <div class="col-md-6 col-lg-4 d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success"></i> Daily production tracking
+            </div>
+            <div class="col-md-6 col-lg-4 d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success"></i> Loss monitoring
+            </div>
+            <div class="col-md-6 col-lg-4 d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success"></i> AI prediction
+            </div>
+            <div class="col-md-6 col-lg-4 d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success"></i> Monthly analysis
+            </div>
+        </div>
+    </div>
 
 </div>
 

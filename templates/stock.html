@@ -1,67 +1,64 @@
 {% extends "base.html" %}
 
+{% block page_title %}Stock Inventory{% endblock %}
+
 {% block content %}
 
-<h2 class="mb-4">
-    Stock Inventory
-</h2>
+<div class="card shadow-sm">
 
-<a href="/add_stock" class="btn btn-success mb-3">
-    Add Stock
-</a>
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-boxes"></i> Stock Inventory</span>
+        <a href="{{ url_for('add_stock') }}" class="btn btn-light btn-sm">
+            <i class="bi bi-plus-lg"></i> Add Stock
+        </a>
+    </div>
 
-<table class="table table-bordered table-hover">
+    <div class="card-body">
 
-    <thead class="table-success">
+        <div class="table-responsive">
 
-        <tr>
+            <table class="table table-bordered table-hover mb-0">
 
-            <th>Item</th>
+                <thead class="table-success">
+                    <tr>
+                        <th>Item</th>
+                        <th>Category</th>
+                        <th>Opening</th>
+                        <th>Stock In</th>
+                        <th>Stock Out</th>
+                        <th>Closing</th>
+                        <th>Unit</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
 
-            <th>Category</th>
+                <tbody>
+                    {% for s in stocks %}
+                    <tr>
+                        <td>{{ s.item_name }}</td>
+                        <td>{{ s.category }}</td>
+                        <td class="mono">{{ s.opening_stock }}</td>
+                        <td class="mono">{{ s.stock_in }}</td>
+                        <td class="mono">{{ s.stock_out }}</td>
+                        <td class="mono"><b>{{ s.closing_stock }}</b></td>
+                        <td>{{ s.unit }}</td>
+                        <td>
+                            {% if s.closing_stock and s.closing_stock > 0 %}
+                            <span class="pill pill-ok"><i class="bi bi-check-circle"></i> In Stock</span>
+                            {% else %}
+                            <span class="pill pill-low"><i class="bi bi-exclamation-circle"></i> Low</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
 
-            <th>Opening</th>
+            </table>
 
-            <th>Stock In</th>
+        </div>
 
-            <th>Stock Out</th>
+    </div>
 
-            <th>Closing</th>
-
-            <th>Unit</th>
-
-        </tr>
-
-    </thead>
-
-    <tbody>
-
-        {% for s in stocks %}
-
-        <tr>
-
-            <td>{{ s.item_name }}</td>
-
-            <td>{{ s.category }}</td>
-
-            <td>{{ s.opening_stock }}</td>
-
-            <td>{{ s.stock_in }}</td>
-
-            <td>{{ s.stock_out }}</td>
-
-            <td>
-                <b>{{ s.closing_stock }}</b>
-            </td>
-
-            <td>{{ s.unit }}</td>
-
-        </tr>
-
-        {% endfor %}
-
-    </tbody>
-
-</table>
+</div>
 
 {% endblock %}

@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Bisleri Energy Monitoring System</title>
+    <title>{% block title %}Bisleri Energy Monitoring System{% endblock %}</title>
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -19,60 +18,152 @@
 
 </head>
 
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-success shadow">
+<div class="app-shell">
 
-    <div class="container-fluid">
+    <!-- Mobile drawer backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-        <a class="navbar-brand fw-bold" href="/">
-            <i class="bi bi-lightning-charge-fill"></i>
-            Bisleri Energy Monitoring
-        </a>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
 
-        <div>
+        <div class="sidebar-brand">
+            <div class="bolt"><i class="bi bi-lightning-charge-fill"></i></div>
+            <div class="brand-text">
+                <div class="line1">Bisleri</div>
+                <div class="line2">Energy Monitoring</div>
+            </div>
+        </div>
 
-    <a href="{{ url_for('dashboard') }}" class="btn btn-success text-white">
-        Dashboard
-    </a>
+        <nav class="sidebar-nav">
 
-    <a href="{{ url_for('add_entry') }}" class="btn btn-success text-white">
-        Add Entry
-    </a>
+            <a href="{{ url_for('dashboard') }}"
+               class="nav-link {% if request.path == url_for('dashboard') %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
 
-    <a href="{{ url_for('records') }}" class="btn btn-success text-white">
-        Records
-    </a>
+            <a href="{{ url_for('add_entry') }}"
+               class="nav-link {% if request.path == url_for('add_entry') %}active{% endif %}">
+                <i class="bi bi-pencil-square"></i> Add Entry
+            </a>
 
-    <a href="{{ url_for('stock') }}" class="btn btn-success text-white">
-        Stock
-    </a>
+            <a href="{{ url_for('records') }}"
+               class="nav-link {% if request.path == url_for('records') %}active{% endif %}">
+                <i class="bi bi-table"></i> Records
+            </a>
 
-    <a href="{{ url_for('analysis') }}" class="btn btn-success text-white">
-        Analysis
-    </a>
+            <a href="{{ url_for('stock') }}"
+               class="nav-link {% if request.path.startswith('/stock') or request.path.startswith('/add_stock') %}active{% endif %}">
+                <i class="bi bi-boxes"></i> Stock
+            </a>
 
-    <a href="{{ url_for('prediction') }}" class="btn btn-success text-white">
-        Prediction
-    </a>
+            <a href="{{ url_for('expenses') }}"
+               class="nav-link {% if request.path.startswith('/expenses') or request.path.startswith('/add_expense') %}active{% endif %}">
+                <i class="bi bi-cash-coin"></i> Expenses
+            </a>
 
-    <a href="{{ url_for('logout') }}" class="btn btn-success text-white">
-        Logout
-    </a>
+            <a href="{{ url_for('analysis') }}"
+               class="nav-link {% if request.path == url_for('analysis') %}active{% endif %}">
+                <i class="bi bi-bar-chart-line"></i> Analysis
+            </a>
 
-</div>
+            <a href="{{ url_for('prediction') }}"
+               class="nav-link {% if request.path == url_for('prediction') %}active{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i> Prediction
+            </a>
+
+        </nav>
+
+        <div class="sidebar-foot">
+            <a href="{{ url_for('logout') }}" class="logout-link">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+
+    </aside>
+
+    <!-- Main column -->
+    <div class="main-wrap">
+
+        <header class="topbar">
+
+            <div class="d-flex align-items-center gap-2">
+                <button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button>
+                <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+            </div>
+
+            <div class="user-chip">
+                <div class="avatar">{{ (session.get('username') or 'A')[0]|upper }}</div>
+                <span>{{ session.get('username', 'Admin') }}</span>
+                <i class="bi bi-chevron-down caret"></i>
+            </div>
+
+        </header>
+
+        <div class="content">
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} py-2">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}
+            {% endblock %}
+
+        </div>
+
     </div>
 
-</nav>
-
-<div class="container mt-4">
-
-{% block content %}
-
-{% endblock %}
-
 </div>
 
-</body>
+<script>
+    const toggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    const mainWrap = document.querySelector('.main-wrap');
+    const isMobile = () => window.innerWidth <= 900;
 
+    // Mobile: sidebar is an off-canvas drawer (hidden by default, opens over content)
+    function openMobileDrawer() {
+        sidebar.classList.add('open');
+        backdrop.classList.add('show');
+    }
+    function closeMobileDrawer() {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('show');
+    }
+
+    // Desktop: sidebar can be collapsed to give the content more width
+    function toggleDesktopSidebar() {
+        sidebar.classList.toggle('collapsed');
+        mainWrap.classList.toggle('full');
+    }
+
+    if (toggle) {
+        toggle.addEventListener('click', () => {
+            if (isMobile()) {
+                sidebar.classList.contains('open') ? closeMobileDrawer() : openMobileDrawer();
+            } else {
+                toggleDesktopSidebar();
+            }
+        });
+    }
+    if (backdrop) {
+        backdrop.addEventListener('click', closeMobileDrawer);
+    }
+    // Close drawer automatically after tapping a nav link on mobile
+    document.querySelectorAll('.sidebar .nav-link').forEach(function (link) {
+        link.addEventListener('click', function () {
+            if (isMobile()) closeMobileDrawer();
+        });
+    });
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
 </html>

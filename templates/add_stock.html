@@ -1,103 +1,69 @@
 {% extends "base.html" %}
 
+{% block page_title %}Add Stock{% endblock %}
+
 {% block content %}
 
-<h2>Add Stock</h2>
+<div class="card shadow-sm" style="max-width:780px;">
 
-<form method="POST">
+    <div class="card-header bg-success text-white">
+        <i class="bi bi-boxes"></i> Add Stock
+    </div>
 
-<div class="row">
+    <div class="card-body">
 
-<div class="col-md-6">
+        <form method="POST">
 
-<label>Item Name</label>
+            <div class="row">
 
-<input
-type="text"
-name="item_name"
-class="form-control"
-required>
+                <div class="col-md-6 mb-3">
+                    <label>Item Name</label>
+                    <input type="text" name="item_name" class="form-control" required>
+                </div>
 
-</div>
+                <div class="col-md-6 mb-3">
+                    <label>Category</label>
+                    <select name="category" class="form-select">
+                        <option>Preform</option>
+                        <option>Cap</option>
+                        <option>Label</option>
+                        <option>Shrink Roll</option>
+                        <option>Carton</option>
+                    </select>
+                </div>
 
-<div class="col-md-6">
+                <div class="col-md-3 mb-3">
+                    <label>Opening Stock</label>
+                    <input type="number" name="opening_stock" class="form-control" required>
+                </div>
 
-<label>Category</label>
+                <div class="col-md-3 mb-3">
+                    <label>Stock In</label>
+                    <input type="number" name="stock_in" class="form-control" value="0">
+                </div>
 
-<select
-name="category"
-class="form-control">
+                <div class="col-md-3 mb-3">
+                    <label>Stock Out</label>
+                    <input type="number" name="stock_out" class="form-control" value="0">
+                </div>
 
-<option>Preform</option>
+                <div class="col-md-3 mb-3">
+                    <label>Unit</label>
+                    <input type="text" name="unit" class="form-control" placeholder="Kg / Nos">
+                </div>
 
-<option>Cap</option>
+            </div>
 
-<option>Label</option>
+            <button class="btn btn-success">
+                <i class="bi bi-save"></i> Save Stock
+            </button>
 
-<option>Shrink Roll</option>
+            <a href="{{ url_for('stock') }}" class="btn btn-outline-secondary">Cancel</a>
 
-<option>Carton</option>
+        </form>
 
-</select>
-
-</div>
-
-<div class="col-md-3 mt-3">
-
-<label>Opening Stock</label>
-
-<input
-type="number"
-name="opening_stock"
-class="form-control"
-required>
-
-</div>
-
-<div class="col-md-3 mt-3">
-
-<label>Stock In</label>
-
-<input
-type="number"
-name="stock_in"
-class="form-control"
-value="0">
+    </div>
 
 </div>
-
-<div class="col-md-3 mt-3">
-
-<label>Stock Out</label>
-
-<input
-type="number"
-name="stock_out"
-class="form-control"
-value="0">
-
-</div>
-
-<div class="col-md-3 mt-3">
-
-<label>Unit</label>
-
-<input
-type="text"
-name="unit"
-class="form-control"
-placeholder="Kg / Nos">
-
-</div>
-
-</div>
-
-<br>
-
-<button class="btn btn-success">
-Save Stock
-</button>
-
-</form>
 
 {% endblock %}

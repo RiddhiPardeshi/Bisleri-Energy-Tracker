@@ -1,304 +1,294 @@
 {% extends "base.html" %}
+
+{% block page_title %}Daily Energy Entry{% endblock %}
+
 {% block content %}
 
-<div class="container mt-4 mb-5">
+<div class="card shadow-sm mb-5">
 
-    <div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <i class="bi bi-pencil-square"></i> Bisleri Daily Energy Entry
+    </div>
 
-        <div class="card-header bg-success text-white">
-            <h3 class="text-center">Bisleri Daily Energy Entry</h3>
-        </div>
+    <div class="card-body">
 
-        <div class="card-body">
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
 
-            {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
+        <form method="POST" id="dailyEntryForm" novalidate autocomplete="off">
 
-            <form method="POST" id="dailyEntryForm" novalidate autocomplete="off">
+            <!-- Basic Information -->
+            <div class="section-label"><i class="bi bi-info-circle"></i> Basic Information</div>
 
-                <!-- Basic Information -->
-                <h5 class="text-success">Basic Information</h5>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label>Date</label>
-                        <input type="date" name="date" class="form-control" autocomplete="off"
-                               value="{{ form_data.get('date') or today }}" required>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label>Batch Number <span class="badge bg-secondary">Auto</span></label>
-                        <input type="text" name="batch_no" class="form-control bg-light" readonly
-                               value="{{ form_data.get('batch_no') or next_batch_no }}">
-                    </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label>Date</label>
+                    <input type="date" name="date" class="form-control" autocomplete="off"
+                           value="{{ form_data.get('date') or today }}" required>
                 </div>
 
-                <hr>
-
-                <!-- Generation Meter -->
-                <h5 class="text-success">Generation Meter</h5>
-                <div class="row">
-                    <div class="col-md-4">
-                        <label>Opening (auto)</label>
-                        <input type="number" step="0.01" id="generation_opening" name="generation_opening"
-                               class="form-control bg-light" readonly
-                               value="{{ (last_entry.generation_closing if last_entry else 0) or 0 }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Closing</label>
-                        <input type="number" step="0.01" id="generation_closing" name="generation_closing"
-                               class="form-control" required autocomplete="off"
-                               value="{{ form_data.get('generation_closing', '') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Total (Auto)</label>
-                        <input type="number" id="generation_total" class="form-control" readonly>
-                    </div>
+                <div class="col-md-6">
+                    <label>Batch Number <span class="badge bg-secondary">Auto</span></label>
+                    <input type="text" name="batch_no" class="form-control bg-light mono" readonly
+                           value="{{ form_data.get('batch_no') or next_batch_no }}">
                 </div>
+            </div>
 
-                <br>
-
-                <!-- Import Meter -->
-                <h5 class="text-success">Import Meter</h5>
-                <div class="row">
-                    <div class="col-md-4">
-                        <label>Opening (auto)</label>
-                        <input type="number" step="0.01" id="import_opening" name="import_opening"
-                               class="form-control bg-light" readonly
-                               value="{{ (last_entry.import_closing if last_entry else 0) or 0 }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Closing</label>
-                        <input type="number" step="0.01" id="import_closing" name="import_closing"
-                               class="form-control" required autocomplete="off"
-                               value="{{ form_data.get('import_closing', '') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Total (Auto)</label>
-                        <input type="number" id="import_total" class="form-control" readonly>
-                    </div>
+            <!-- Generation Meter -->
+            <div class="section-label"><i class="bi bi-lightning-charge"></i> Generation Meter</div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Opening (auto)</label>
+                    <input type="number" step="0.01" id="generation_opening" name="generation_opening"
+                           class="form-control bg-light mono" readonly
+                           value="{{ (last_entry.generation_closing if last_entry else 0) or 0 }}">
                 </div>
-
-                <br>
-
-                <!-- Export Meter -->
-                <h5 class="text-success">Export Meter</h5>
-                <div class="row">
-                    <div class="col-md-4">
-                        <label>Opening (auto)</label>
-                        <input type="number" step="0.01" id="export_opening" name="export_opening"
-                               class="form-control bg-light" readonly
-                               value="{{ (last_entry.export_closing if last_entry else 0) or 0 }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Closing</label>
-                        <input type="number" step="0.01" id="export_closing" name="export_closing"
-                               class="form-control" required autocomplete="off"
-                               value="{{ form_data.get('export_closing', '') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Total (Auto)</label>
-                        <input type="number" id="export_total" class="form-control" readonly>
-                    </div>
+                <div class="col-md-4">
+                    <label>Closing</label>
+                    <input type="number" step="0.01" id="generation_closing" name="generation_closing"
+                           class="form-control mono" required autocomplete="off"
+                           value="{{ form_data.get('generation_closing', '') }}">
                 </div>
-
-                <br>
-
-                <!-- Consumption -->
-                <h5 class="text-success">Consumption</h5>
-                <input type="number" id="consumption" class="form-control" readonly>
-
-                <br>
-
-                <!-- Production -->
-                <h5 class="text-success">Production</h5>
-                <div class="row">
-                    <div class="col-md-4">
-                        <label>Production</label>
-                        <input type="number" name="production" class="form-control" required
-                               value="{{ form_data.get('production', '') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label>Production Type</label>
-                        <select name="production_type" class="form-select" required>
-                        {% set selected_type = form_data.get('production_type', '') %}
-                        <option value="LPR" {% if selected_type == "LPR" %}selected{% endif %}>LPR</option>
-                        <option value="ML" {% if selected_type == "ML" %}selected{% endif %}>ML</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label>Boxes</label>
-                        <input type="number" name="boxes" class="form-control" required
-                               value="{{ form_data.get('boxes', '') }}">
-                    </div>
+                <div class="col-md-4">
+                    <label>Total (Auto)</label>
+                    <input type="number" id="generation_total" class="form-control mono" readonly>
                 </div>
+            </div>
 
-                <hr>
+            <!-- Import Meter -->
+            <div class="section-label"><i class="bi bi-box-arrow-in-down"></i> Import Meter</div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Opening (auto)</label>
+                    <input type="number" step="0.01" id="import_opening" name="import_opening"
+                           class="form-control bg-light mono" readonly
+                           value="{{ (last_entry.import_closing if last_entry else 0) or 0 }}">
+                </div>
+                <div class="col-md-4">
+                    <label>Closing</label>
+                    <input type="number" step="0.01" id="import_closing" name="import_closing"
+                           class="form-control mono" required autocomplete="off"
+                           value="{{ form_data.get('import_closing', '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>Total (Auto)</label>
+                    <input type="number" id="import_total" class="form-control mono" readonly>
+                </div>
+            </div>
 
-                <h5 class="text-success">Loss Details (Register Entry)</h5>
-                <p class="text-muted small">
-                    Enter Units and Rupees exactly as recorded in the physical register.
-                    Rupee values are NOT calculated by the software — they must be entered manually.
-                </p>
+            <!-- Export Meter -->
+            <div class="section-label"><i class="bi bi-box-arrow-up"></i> Export Meter</div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Opening (auto)</label>
+                    <input type="number" step="0.01" id="export_opening" name="export_opening"
+                           class="form-control bg-light mono" readonly
+                           value="{{ (last_entry.export_closing if last_entry else 0) or 0 }}">
+                </div>
+                <div class="col-md-4">
+                    <label>Closing</label>
+                    <input type="number" step="0.01" id="export_closing" name="export_closing"
+                           class="form-control mono" required autocomplete="off"
+                           value="{{ form_data.get('export_closing', '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>Total (Auto)</label>
+                    <input type="number" id="export_total" class="form-control mono" readonly>
+                </div>
+            </div>
 
-                <!-- BLOWING -->
-                <div class="card mb-3">
-                    <div class="card-header bg-secondary text-white">Blowing</div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label>Preform Units</label>
-                                <input type="number" class="form-control loss-unit" name="blowing_preform"
-                                       value="{{ form_data.get('blowing_preform', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Preform Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="blowing_preform_rs"
-                                       value="{{ form_data.get('blowing_preform_rs', 0) }}">
-                            </div>
+            <!-- Consumption -->
+            <div class="section-label"><i class="bi bi-speedometer2"></i> Consumption</div>
+            <input type="number" id="consumption" class="form-control mono" readonly>
+
+            <!-- Production -->
+            <div class="section-label"><i class="bi bi-box-seam"></i> Production</div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Production</label>
+                    <input type="number" name="production" class="form-control" required
+                           value="{{ form_data.get('production', '') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>Production Type</label>
+                    <select name="production_type" class="form-select" required>
+                    {% set selected_type = form_data.get('production_type', '') %}
+                    <option value="LPR" {% if selected_type == "LPR" %}selected{% endif %}>LPR</option>
+                    <option value="ML" {% if selected_type == "ML" %}selected{% endif %}>ML</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label>Boxes</label>
+                    <input type="number" name="boxes" class="form-control" required
+                           value="{{ form_data.get('boxes', '') }}">
+                </div>
+            </div>
+
+            <div class="section-label"><i class="bi bi-exclamation-triangle"></i> Loss Details (Register Entry)</div>
+            <p class="text-muted small mt-n2">
+                Enter Units and Rupees exactly as recorded in the physical register.
+                Rupee values are NOT calculated by the software — they must be entered manually.
+            </p>
+
+            <!-- BLOWING -->
+            <div class="subcard">
+                <div class="subcard-head"><i class="bi bi-wind"></i> Blowing</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label>Preform Units</label>
+                            <input type="number" class="form-control loss-unit" name="blowing_preform"
+                                   value="{{ form_data.get('blowing_preform', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Preform Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="blowing_preform_rs"
+                                   value="{{ form_data.get('blowing_preform_rs', 0) }}">
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- FILLING -->
-                <div class="card mb-3">
-                    <div class="card-header bg-secondary text-white">Filling</div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label>Preform Units</label>
-                                <input type="number" class="form-control loss-unit" name="filling_preform"
-                                       value="{{ form_data.get('filling_preform', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Cap Units</label>
-                                <input type="number" class="form-control loss-unit" name="filling_cap"
-                                       value="{{ form_data.get('filling_cap', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Preform Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="filling_preform_rs"
-                                       value="{{ form_data.get('filling_preform_rs', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Cap Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="filling_cap_rs"
-                                       value="{{ form_data.get('filling_cap_rs', 0) }}">
-                            </div>
+            <!-- FILLING -->
+            <div class="subcard">
+                <div class="subcard-head"><i class="bi bi-droplet"></i> Filling</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label>Preform Units</label>
+                            <input type="number" class="form-control loss-unit" name="filling_preform"
+                                   value="{{ form_data.get('filling_preform', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Cap Units</label>
+                            <input type="number" class="form-control loss-unit" name="filling_cap"
+                                   value="{{ form_data.get('filling_cap', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Preform Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="filling_preform_rs"
+                                   value="{{ form_data.get('filling_preform_rs', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Cap Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="filling_cap_rs"
+                                   value="{{ form_data.get('filling_cap_rs', 0) }}">
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- LABELING -->
-                <div class="card mb-3">
-                    <div class="card-header bg-secondary text-white">Labeling</div>
-                    <div class="card-body">
-                        <div class="row mb-2">
-                            <div class="col-md-4">
-                                <label>Bottle Units</label>
-                                <input type="number" class="form-control loss-unit" name="labeling_bottle"
-                                       value="{{ form_data.get('labeling_bottle', 0) }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label>Cap Units</label>
-                                <input type="number" class="form-control loss-unit" name="labeling_cap"
-                                       value="{{ form_data.get('labeling_cap', 0) }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label>Sticker Units</label>
-                                <input type="number" class="form-control loss-unit" name="labeling_sticker"
-                                       value="{{ form_data.get('labeling_sticker', 0) }}">
-                            </div>
+            <!-- LABELING -->
+            <div class="subcard">
+                <div class="subcard-head"><i class="bi bi-tag"></i> Labeling</div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-4">
+                            <label>Bottle Units</label>
+                            <input type="number" class="form-control loss-unit" name="labeling_bottle"
+                                   value="{{ form_data.get('labeling_bottle', 0) }}">
                         </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <label>Bottle Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="labeling_bottle_rs"
-                                       value="{{ form_data.get('labeling_bottle_rs', 0) }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label>Cap Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="labeling_cap_rs"
-                                       value="{{ form_data.get('labeling_cap_rs', 0) }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label>Sticker Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="labeling_sticker_rs"
-                                       value="{{ form_data.get('labeling_sticker_rs', 0) }}">
-                            </div>
+                        <div class="col-md-4">
+                            <label>Cap Units</label>
+                            <input type="number" class="form-control loss-unit" name="labeling_cap"
+                                   value="{{ form_data.get('labeling_cap', 0) }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label>Sticker Units</label>
+                            <input type="number" class="form-control loss-unit" name="labeling_sticker"
+                                   value="{{ form_data.get('labeling_sticker', 0) }}">
                         </div>
                     </div>
-                </div>
-
-                <!-- SHRINK -->
-                <div class="card mb-3">
-                    <div class="card-header bg-secondary text-white">Shrink</div>
-                    <div class="card-body">
-                        <div class="row mb-2">
-                            <div class="col-md-3">
-                                <label>Paper Units</label>
-                                <input type="number" class="form-control loss-unit" name="shrink_paper"
-                                       value="{{ form_data.get('shrink_paper', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Bottle Units</label>
-                                <input type="number" class="form-control loss-unit" name="shrink_bottle"
-                                       value="{{ form_data.get('shrink_bottle', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Cap Units</label>
-                                <input type="number" class="form-control loss-unit" name="shrink_cap"
-                                       value="{{ form_data.get('shrink_cap', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Sticker Units</label>
-                                <input type="number" class="form-control loss-unit" name="shrink_sticker"
-                                       value="{{ form_data.get('shrink_sticker', 0) }}">
-                            </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label>Bottle Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="labeling_bottle_rs"
+                                   value="{{ form_data.get('labeling_bottle_rs', 0) }}">
                         </div>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <label>Paper Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_paper_rs"
-                                       value="{{ form_data.get('shrink_paper_rs', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Bottle Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_bottle_rs"
-                                       value="{{ form_data.get('shrink_bottle_rs', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Cap Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_cap_rs"
-                                       value="{{ form_data.get('shrink_cap_rs', 0) }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label>Sticker Loss ₹</label>
-                                <input type="number" step="0.01" class="form-control loss-rs" name="shrink_sticker_rs"
-                                       value="{{ form_data.get('shrink_sticker_rs', 0) }}">
-                            </div>
+                        <div class="col-md-4">
+                            <label>Cap Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="labeling_cap_rs"
+                                   value="{{ form_data.get('labeling_cap_rs', 0) }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label>Sticker Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="labeling_sticker_rs"
+                                   value="{{ form_data.get('labeling_sticker_rs', 0) }}">
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- TOTALS -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label><strong>Total Loss Units (Auto)</strong></label>
-                        <input type="number" id="total_loss_units" class="form-control fw-bold" readonly>
+            <!-- SHRINK -->
+            <div class="subcard">
+                <div class="subcard-head"><i class="bi bi-archive"></i> Shrink</div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-3">
+                            <label>Paper Units</label>
+                            <input type="number" class="form-control loss-unit" name="shrink_paper"
+                                   value="{{ form_data.get('shrink_paper', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Bottle Units</label>
+                            <input type="number" class="form-control loss-unit" name="shrink_bottle"
+                                   value="{{ form_data.get('shrink_bottle', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Cap Units</label>
+                            <input type="number" class="form-control loss-unit" name="shrink_cap"
+                                   value="{{ form_data.get('shrink_cap', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Sticker Units</label>
+                            <input type="number" class="form-control loss-unit" name="shrink_sticker"
+                                   value="{{ form_data.get('shrink_sticker', 0) }}">
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label><strong>Total Loss ₹ (Auto)</strong></label>
-                        <input type="number" id="total_loss_rs" class="form-control fw-bold" readonly>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label>Paper Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="shrink_paper_rs"
+                                   value="{{ form_data.get('shrink_paper_rs', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Bottle Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="shrink_bottle_rs"
+                                   value="{{ form_data.get('shrink_bottle_rs', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Cap Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="shrink_cap_rs"
+                                   value="{{ form_data.get('shrink_cap_rs', 0) }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Sticker Loss ₹</label>
+                            <input type="number" step="0.01" class="form-control loss-rs" name="shrink_sticker_rs"
+                                   value="{{ form_data.get('shrink_sticker_rs', 0) }}">
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <button class="btn btn-success btn-lg w-100">Save Daily Entry</button>
+            <!-- TOTALS -->
+            <div class="row mb-3 mt-3">
+                <div class="col-md-6">
+                    <label><strong>Total Loss Units (Auto)</strong></label>
+                    <input type="number" id="total_loss_units" class="form-control fw-bold mono" readonly>
+                </div>
+                <div class="col-md-6">
+                    <label><strong>Total Loss ₹ (Auto)</strong></label>
+                    <input type="number" id="total_loss_rs" class="form-control fw-bold mono" readonly>
+                </div>
+            </div>
 
-            </form>
+            <button class="btn btn-success btn-lg w-100">
+                <i class="bi bi-save"></i> Save Daily Entry
+            </button>
 
-        </div>
+        </form>
+
     </div>
 </div>
 
