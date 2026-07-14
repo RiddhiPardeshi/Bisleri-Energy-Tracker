@@ -8,7 +8,7 @@ from flask import (
     flash
 )
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from config import Config
 from models import db, DailyEntry, Expense, Admin, Stock
@@ -22,6 +22,10 @@ from functools import wraps
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Sessions expire after 30 minutes of inactivity instead of lasting
+# indefinitely in the browser (fixes "always goes straight to dashboard")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
 
 db.init_app(app)
 
@@ -75,6 +79,7 @@ def login():
 
         if admin and admin.check_password(password):
 
+            session.permanent = True
             session["admin_id"] = admin.id
             session["username"] = admin.username
             
@@ -132,8 +137,6 @@ def logout():
 
 @app.route("/")
 def home():
-    if "admin_id" in session:
-        return redirect(url_for("dashboard"))
     return redirect(url_for("login"))
 # -----------------------------
 # Dashboard
