@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block page_title %}Employees{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm">
+
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people"></i> Employees</span>
+        <a href="{{ url_for('add_employee') }}" class="btn btn-light btn-sm">
+            <i class="bi bi-plus-lg"></i> Add Employee
+        </a>
+    </div>
+
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered table-hover align-middle mb-0">
+
+                <thead class="table-success">
+                    <tr>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Designation</th>
+                        <th>Phone</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% if employees %}
+                        {% for emp in employees %}
+                        <tr>
+                            <td>{{ emp.name }}</td>
+                            <td class="mono">{{ emp.username }}</td>
+                            <td>
+                                {% if emp.role == 'Admin' %}
+                                <span class="pill pill-ok"><i class="bi bi-shield-check"></i> {{ emp.role }}</span>
+                                {% elif emp.role == 'Manager' %}
+                                <span class="pill pill-ok"><i class="bi bi-briefcase"></i> {{ emp.role }}</span>
+                                {% else %}
+                                <span class="pill pill-low"><i class="bi bi-person"></i> {{ emp.role }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ emp.designation or '-' }}</td>
+                            <td class="mono">{{ emp.phone or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-danger py-4">
+                                No employees found.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

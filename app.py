@@ -11,13 +11,23 @@ from flask import (
 from datetime import datetime, date, timedelta
 
 from config import Config
-from models import db, DailyEntry, Expense, Admin, Stock
+from models import create_admin, create_employee, verify_password, ROLES
+from database import (
+    mongo_db,
+    daily_entries,
+    admins,
+    expenses,
+    stocks,
+    employees,
+    attendance,
+    products,
+    meters
+)
 
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from functools import wraps
-
-
+import os
 
 
 app = Flask(__name__)
@@ -26,8 +36,6 @@ app.config.from_object(Config)
 # Sessions expire after 30 minutes of inactivity instead of lasting
 # indefinitely in the browser (fixes "always goes straight to dashboard")
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
-
-db.init_app(app)
 
 
 # -----------------------------
@@ -47,6 +55,13 @@ def parse_int(value, default=0):
     except (TypeError, ValueError):
         return default
 
+
+def today_start_datetime():
+    """Return today's date as a midnight datetime, matching how form
+    dates are stored (datetime.strptime(..., "%Y-%m-%d"))."""
+    return datetime.combine(date.today(), datetime.min.time())
+
+
 # -----------------------------
 # Login Required Decorator
 # -----------------------------
@@ -63,9 +78,33 @@ def login_required(f):
     return decorated_function
 
 
+# -----------------------------
+# Role Required Decorator
+# -----------------------------
+# Usage: @role_required("Admin") or @role_required("Admin", "Manager")
+# Must be used AFTER @login_required (i.e. placed below it) so a
+# session is guaranteed to already exist.
+def role_required(*allowed_roles):
+    def wrapper(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+
+            if "admin_id" not in session:
+                flash("Please login first.", "warning")
+                return redirect(url_for("login"))
+
+            if session.get("role") not in allowed_roles:
+                flash("You do not have permission to access that page.", "danger")
+                return redirect(url_for("dashboard"))
+
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return wrapper
+
 
 # -----------------------------
-# Admin Login
+# Owner / Employee Login
 # -----------------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -75,23 +114,37 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        admin = Admin.query.filter_by(username=username).first()
+        # "owner" or "employee" - which collection to check.
+        # Defaults to "owner" so old bookmarked forms still work.
+        login_as = request.form.get("login_as", "owner")
 
-        if admin and admin.check_password(password):
+        if login_as == "employee":
+            account = employees.find_one({"username": username})
+        else:
+            account = admins.find_one({"username": username})
+
+        if account and verify_password(account["password"], password):
 
             session.permanent = True
-            session["admin_id"] = admin.id
-            session["username"] = admin.username
-            
+            session["admin_id"] = str(account["_id"])
+            session["username"] = account["username"]
+            session["role"] = account.get("role", "Admin")
+            session["login_as"] = login_as
 
             flash("Login Successful", "success")
-
             return redirect(url_for("dashboard"))
 
-        flash("Invalid Username or Password", "danger")
+        if login_as == "employee":
+            flash("Invalid employee username or password.", "danger")
+        else:
+            flash("Invalid owner username or password.", "danger")
+
+        return redirect(url_for("login"))
 
     return render_template("login.html")
-  # -----------------------------
+
+
+# -----------------------------
 # Register Admin
 # -----------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -102,19 +155,23 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
 
-        existing = Admin.query.filter_by(username=username).first()
+        existing = admins.find_one({
+            "username": username
+        })
 
         if existing:
             flash("Username already exists!", "danger")
             return redirect(url_for("register"))
 
-        admin = Admin(username=username)
-        admin.set_password(password)
+        admin = create_admin(
+            username,
+            password
+        )
 
-        db.session.add(admin)
-        db.session.commit()
+        admins.insert_one(admin)
 
         flash("Account Created Successfully. Please Login.", "success")
+
         return redirect(url_for("login"))
 
     return render_template("register.html")
@@ -133,11 +190,11 @@ def logout():
     return redirect(url_for("login"))
 
 
-
-
 @app.route("/")
 def home():
     return redirect(url_for("login"))
+
+
 # -----------------------------
 # Dashboard
 # -----------------------------
@@ -145,17 +202,17 @@ def home():
 @login_required
 def dashboard():
 
-    today_date = date.today()
+    today_dt = today_start_datetime()
 
-    today_entry = DailyEntry.query.filter_by(date=today_date).first()
+    today_entry = daily_entries.find_one({"date": today_dt})
 
-    total_production = today_entry.production if today_entry else 0
-    total_consumption = today_entry.consumption if today_entry else 0
-    total_loss = today_entry.total_loss_rs if today_entry else 0
+    total_production = today_entry.get("production", 0) if today_entry else 0
+    total_consumption = today_entry.get("consumption", 0) if today_entry else 0
+    total_loss = today_entry.get("total_loss_rs", 0) if today_entry else 0
 
-    if today_entry and today_entry.consumption:
+    if today_entry and today_entry.get("consumption"):
         efficiency = (
-            (today_entry.production or 0) / today_entry.consumption * 100
+            (today_entry.get("production") or 0) / today_entry.get("consumption") * 100
         )
     else:
         efficiency = 0
@@ -168,6 +225,7 @@ def dashboard():
         efficiency=efficiency
     )
 
+
 # -----------------------------
 # Add Daily Entry
 # -----------------------------
@@ -175,19 +233,21 @@ def dashboard():
 @login_required
 def add_entry():
 
-    last_entry = DailyEntry.query.order_by(DailyEntry.id.desc()).first()
+    last_entry_cursor = daily_entries.find().sort("date", -1).limit(1)
+    last_entry = next(last_entry_cursor, None)
+
     today_str = date.today().strftime("%Y-%m-%d")
 
     # Auto-generated batch number
-    next_batch_no = f"BSL-{DailyEntry.query.count() + 1:04d}"
+    next_batch_no = f"BSL-{daily_entries.count_documents({}) + 1:04d}"
 
     if request.method == "POST":
 
         error = None
 
-        generation_opening = (last_entry.generation_closing if last_entry else 0.0) or 0.0
-        import_opening = (last_entry.import_closing if last_entry else 0.0) or 0.0
-        export_opening = (last_entry.export_closing if last_entry else 0.0) or 0.0
+        generation_opening = (last_entry.get("generation_closing", 0.0) if last_entry else 0.0) or 0.0
+        import_opening = (last_entry.get("import_closing", 0.0) if last_entry else 0.0) or 0.0
+        export_opening = (last_entry.get("export_closing", 0.0) if last_entry else 0.0) or 0.0
 
         generation_closing = parse_float(request.form.get("generation_closing"), None)
         import_closing = parse_float(request.form.get("import_closing"), None)
@@ -259,58 +319,59 @@ def add_entry():
             shrink_paper_rs + shrink_bottle_rs + shrink_cap_rs + shrink_sticker_rs
         )
 
-        entry = DailyEntry(
-            date=datetime.strptime(request.form["date"], "%Y-%m-%d").date(),
-            batch_no=request.form.get("batch_no", ""),
+        entry = {
+            "date": datetime.strptime(request.form["date"], "%Y-%m-%d"),
+            "batch_no": request.form.get("batch_no", ""),
 
-            generation_opening=generation_opening,
-            generation_closing=generation_closing,
-            generation_total=generation_total,
+            "generation_opening": generation_opening,
+            "generation_closing": generation_closing,
+            "generation_total": generation_total,
 
-            import_opening=import_opening,
-            import_closing=import_closing,
-            import_total=import_total,
+            "import_opening": import_opening,
+            "import_closing": import_closing,
+            "import_total": import_total,
 
-            export_opening=export_opening,
-            export_closing=export_closing,
-            export_total=export_total,
+            "export_opening": export_opening,
+            "export_closing": export_closing,
+            "export_total": export_total,
 
-            consumption=consumption,
+            "consumption": consumption,
 
-            production=production,
-            production_type=production_type,
-            boxes=boxes,
+            "production": production,
+            "production_type": production_type,
+            "boxes": boxes,
 
-            blowing_preform=blowing_preform,
-            filling_preform=filling_preform,
-            filling_cap=filling_cap,
-            labeling_bottle=labeling_bottle,
-            labeling_cap=labeling_cap,
-            labeling_sticker=labeling_sticker,
+            "blowing_preform": blowing_preform,
+            "filling_preform": filling_preform,
+            "filling_cap": filling_cap,
+            "labeling_bottle": labeling_bottle,
+            "labeling_cap": labeling_cap,
+            "labeling_sticker": labeling_sticker,
 
-            shrink_paper=shrink_paper,
-            shrink_bottle=shrink_bottle,
-            shrink_cap=shrink_cap,
-            shrink_sticker=shrink_sticker,
+            "shrink_paper": shrink_paper,
+            "shrink_bottle": shrink_bottle,
+            "shrink_cap": shrink_cap,
+            "shrink_sticker": shrink_sticker,
 
-            blowing_preform_rs=blowing_preform_rs,
-            filling_preform_rs=filling_preform_rs,
-            filling_cap_rs=filling_cap_rs,
-            labeling_bottle_rs=labeling_bottle_rs,
-            labeling_cap_rs=labeling_cap_rs,
-            labeling_sticker_rs=labeling_sticker_rs,
+            "blowing_preform_rs": blowing_preform_rs,
+            "filling_preform_rs": filling_preform_rs,
+            "filling_cap_rs": filling_cap_rs,
+            "labeling_bottle_rs": labeling_bottle_rs,
+            "labeling_cap_rs": labeling_cap_rs,
+            "labeling_sticker_rs": labeling_sticker_rs,
 
-            shrink_paper_rs=shrink_paper_rs,
-            shrink_bottle_rs=shrink_bottle_rs,
-            shrink_cap_rs=shrink_cap_rs,
-            shrink_sticker_rs=shrink_sticker_rs,
+            "shrink_paper_rs": shrink_paper_rs,
+            "shrink_bottle_rs": shrink_bottle_rs,
+            "shrink_cap_rs": shrink_cap_rs,
+            "shrink_sticker_rs": shrink_sticker_rs,
 
-            total_loss_units=total_loss_units,
-            total_loss_rs=total_loss_rs
-        )
+            "total_loss_units": total_loss_units,
+            "total_loss_rs": total_loss_rs
+        }
 
-        db.session.add(entry)
-        db.session.commit()
+        # insert_one only ADDS a new document - existing plant data
+        # is never touched, overwritten, or removed here.
+        daily_entries.insert_one(entry)
 
         flash("Daily Entry Saved Successfully.", "success")
 
@@ -327,6 +388,7 @@ def add_entry():
         error=None
     )
 
+
 # -----------------------------
 # Records
 # -----------------------------
@@ -334,7 +396,7 @@ def add_entry():
 @login_required
 def records():
 
-    entries = DailyEntry.query.all()
+    entries = list(daily_entries.find().sort("date", -1))
 
     return render_template(
         "records.html",
@@ -349,11 +411,11 @@ def records():
 @login_required
 def stock():
 
-    stocks = Stock.query.all()
+    stock_items = list(stocks.find())
 
     return render_template(
         "stock.html",
-        stocks=stocks
+        stocks=stock_items
     )
 
 
@@ -363,24 +425,25 @@ def add_stock():
 
     if request.method == "POST":
 
-        opening = int(request.form["opening_stock"])
-        stock_in = int(request.form["stock_in"])
-        stock_out = int(request.form["stock_out"])
+        opening = parse_int(request.form.get("opening_stock"))
+        stock_in = parse_int(request.form.get("stock_in"))
+        stock_out = parse_int(request.form.get("stock_out"))
 
         closing = opening + stock_in - stock_out
 
-        item = Stock(
-            item_name=request.form["item_name"],
-            category=request.form["category"],
-            opening_stock=opening,
-            stock_in=stock_in,
-            stock_out=stock_out,
-            closing_stock=closing,
-            unit=request.form["unit"]
-        )
+        item = {
+            "item_name": request.form.get("item_name", ""),
+            "category": request.form.get("category", ""),
+            "opening_stock": opening,
+            "stock_in": stock_in,
+            "stock_out": stock_out,
+            "closing_stock": closing,
+            "unit": request.form.get("unit", "")
+        }
 
-        db.session.add(item)
-        db.session.commit()
+        # insert_one only ADDS a new document - existing stock records
+        # are never touched, overwritten, or removed here.
+        stocks.insert_one(item)
 
         flash("Stock Added Successfully", "success")
 
@@ -396,14 +459,14 @@ def add_stock():
 @login_required
 def analysis():
 
-    entries = DailyEntry.query.all()
+    entries = list(daily_entries.find())
 
     total_records = len(entries)
 
-    total_production = sum(entry.production or 0 for entry in entries)
-    total_consumption = sum(entry.consumption or 0 for entry in entries)
-    total_loss_units = sum(entry.total_loss_units or 0 for entry in entries)
-    total_loss_rs = sum(entry.total_loss_rs or 0 for entry in entries)
+    total_production = sum(entry.get("production") or 0 for entry in entries)
+    total_consumption = sum(entry.get("consumption") or 0 for entry in entries)
+    total_loss_units = sum(entry.get("total_loss_units") or 0 for entry in entries)
+    total_loss_rs = sum(entry.get("total_loss_rs") or 0 for entry in entries)
 
     if total_records > 0:
         avg_production = total_production / total_records
@@ -439,20 +502,21 @@ def add_expense():
 
     if request.method == "POST":
 
-        expense = Expense(
-            date=datetime.strptime(
+        expense = {
+            "date": datetime.strptime(
                 request.form["date"],
                 "%Y-%m-%d"
-            ).date(),
-            description=request.form["description"],
-            amount=float(request.form["amount"]),
-            payment_mode=request.form["payment_mode"]
-        )
+            ),
+            "description": request.form.get("description", ""),
+            "amount": parse_float(request.form.get("amount")),
+            "payment_mode": request.form.get("payment_mode", "")
+        }
 
-        db.session.add(expense)
-        db.session.commit()
+        # insert_one only ADDS a new document - existing expense
+        # records are never touched, overwritten, or removed here.
+        expenses.insert_one(expense)
 
-        return redirect(url_for("expenses"))
+        return redirect(url_for("expenses_page"))
 
     return render_template("add_expense.html")
 
@@ -462,17 +526,200 @@ def add_expense():
 # -----------------------------
 @app.route("/expenses")
 @login_required
-def expenses():
+def expenses_page():
 
-    expenses = Expense.query.order_by(Expense.date.desc()).all()
+    expense_list = list(expenses.find().sort("date", -1))
 
-    total_expense = sum(e.amount for e in expenses)
+    total_expense = sum(e.get("amount") or 0 for e in expense_list)
 
     return render_template(
         "expenses.html",
-        expenses=expenses,
+        expenses=expense_list,
         total_expense=total_expense
     )
+
+
+# -----------------------------
+# Employees (Admin only)
+# -----------------------------
+@app.route("/employees")
+@login_required
+@role_required("Admin")
+def employees_page():
+
+    employee_list = list(employees.find().sort("name", 1))
+
+    return render_template(
+        "employees.html",
+        employees=employee_list
+    )
+
+
+@app.route("/add_employee", methods=["GET", "POST"])
+@login_required
+@role_required("Admin")
+def add_employee():
+
+    if request.method == "POST":
+
+        username = request.form.get("username", "").strip()
+
+        existing = employees.find_one({"username": username})
+        existing_admin = admins.find_one({"username": username})
+
+        if existing or existing_admin:
+            flash("Username already exists!", "danger")
+            return redirect(url_for("add_employee"))
+
+        employee = create_employee(
+            name=request.form.get("name", ""),
+            username=username,
+            password=request.form.get("password", ""),
+            role=request.form.get("role", "Operator"),
+            phone=request.form.get("phone", ""),
+            designation=request.form.get("designation", "")
+        )
+
+        employees.insert_one(employee)
+
+        flash("Employee Added Successfully", "success")
+
+        return redirect(url_for("employees_page"))
+
+    return render_template("add_employee.html", roles=ROLES)
+
+
+# -----------------------------
+# Attendance (all logged-in roles)
+# -----------------------------
+@app.route("/attendance")
+@login_required
+def attendance_page():
+
+    today_str = date.today().strftime("%Y-%m-%d")
+
+    records_list = list(attendance.find().sort("date", -1).limit(200))
+    employee_list = list(employees.find().sort("name", 1))
+
+    return render_template(
+        "attendance.html",
+        attendance_records=records_list,
+        employees=employee_list,
+        today=today_str
+    )
+
+
+@app.route("/add_attendance", methods=["GET", "POST"])
+@login_required
+def add_attendance():
+
+    if request.method == "POST":
+
+        employee_id = request.form.get("employee_id", "")
+        employee_name = request.form.get("employee_name", "")
+        att_date = request.form.get("date", "")
+
+        record = {
+            "employee_id": employee_id,
+            "employee_name": employee_name,
+            "date": datetime.strptime(att_date, "%Y-%m-%d") if att_date else today_start_datetime(),
+            "status": request.form.get("status", "Present"),
+            "remarks": request.form.get("remarks", "")
+        }
+
+        # insert_one only ADDS a new document - existing attendance
+        # records are never touched, overwritten, or removed here.
+        attendance.insert_one(record)
+
+        flash("Attendance Marked Successfully", "success")
+
+        return redirect(url_for("attendance_page"))
+
+    return redirect(url_for("attendance_page"))
+
+
+# -----------------------------
+# Products (Admin & Manager)
+# -----------------------------
+@app.route("/products")
+@login_required
+@role_required("Admin", "Manager")
+def products_page():
+
+    product_list = list(products.find().sort("product_name", 1))
+
+    return render_template(
+        "products.html",
+        products=product_list
+    )
+
+
+@app.route("/add_product", methods=["GET", "POST"])
+@login_required
+@role_required("Admin", "Manager")
+def add_product():
+
+    if request.method == "POST":
+
+        product = {
+            "product_name": request.form.get("product_name", ""),
+            "category": request.form.get("category", ""),
+            "unit": request.form.get("unit", ""),
+            "unit_price": parse_float(request.form.get("unit_price")),
+            "description": request.form.get("description", "")
+        }
+
+        # insert_one only ADDS a new document - existing product
+        # records are never touched, overwritten, or removed here.
+        products.insert_one(product)
+
+        flash("Product Added Successfully", "success")
+
+        return redirect(url_for("products_page"))
+
+    return render_template("add_product.html")
+
+
+# -----------------------------
+# Meters (Admin & Manager)
+# -----------------------------
+@app.route("/meters")
+@login_required
+@role_required("Admin", "Manager")
+def meters_page():
+
+    meter_list = list(meters.find().sort("meter_name", 1))
+
+    return render_template(
+        "meters.html",
+        meters=meter_list
+    )
+
+
+@app.route("/add_meter", methods=["GET", "POST"])
+@login_required
+@role_required("Admin", "Manager")
+def add_meter():
+
+    if request.method == "POST":
+
+        meter = {
+            "meter_name": request.form.get("meter_name", ""),
+            "meter_type": request.form.get("meter_type", ""),
+            "location": request.form.get("location", ""),
+            "installed_date": request.form.get("installed_date", ""),
+            "status": request.form.get("status", "Active")
+        }
+
+        # insert_one only ADDS a new document - existing meter
+        # records are never touched, overwritten, or removed here.
+        meters.insert_one(meter)
+
+        flash("Meter Added Successfully", "success")
+
+        return redirect(url_for("meters_page"))
+
+    return render_template("add_meter.html")
 
 
 # -----------------------------
@@ -482,7 +729,7 @@ def expenses():
 @login_required
 def prediction():
 
-    entries = DailyEntry.query.order_by(DailyEntry.date).all()
+    entries = list(daily_entries.find().sort("date", 1))
 
     if len(entries) == 0:
         return render_template(
@@ -490,7 +737,7 @@ def prediction():
             message="No records found."
         )
 
-    production = [e.production or 0 for e in entries]
+    production = [e.get("production") or 0 for e in entries]
     average_production = sum(production) / len(production)
 
     if len(entries) < 3:
@@ -519,15 +766,15 @@ def prediction():
 
     total_prediction = round(sum(future_prediction), 2)
 
-    total_loss = sum(e.total_loss_rs or 0 for e in entries)
+    total_loss = sum(e.get("total_loss_rs") or 0 for e in entries)
     average_daily_loss = total_loss / len(entries)
     predicted_loss = average_daily_loss * 30
 
-    expenses = Expense.query.all()
-    total_expense = sum(e.amount or 0 for e in expenses)
+    expense_list = list(expenses.find())
+    total_expense = sum(e.get("amount") or 0 for e in expense_list)
 
-    if len(expenses) > 0:
-        average_daily_expense = total_expense / len(expenses)
+    if len(expense_list) > 0:
+        average_daily_expense = total_expense / len(expense_list)
     else:
         average_daily_expense = 0
 
@@ -554,23 +801,19 @@ def prediction():
 # -----------------------------
 # Main
 # -----------------------------
-import os
 
-with app.app_context():
-    db.create_all()
+# Create the default admin ONLY if it does not already exist.
+# This never deletes or overwrites existing plant data.
+if not admins.find_one({"username": "admin"}):
 
-    if not Admin.query.filter_by(username="admin").first():
+    admin = create_admin(
+        "admin",
+        "admin123"
+    )
 
-        admin = Admin(
-            username="admin"
-        )
+    admins.insert_one(admin)
 
-        admin.set_password("admin123")
-
-        db.session.add(admin)
-        db.session.commit()
-
-        print("Default Admin Created")
+    print("Default MongoDB Admin Created")
 
 
 if __name__ == "__main__":

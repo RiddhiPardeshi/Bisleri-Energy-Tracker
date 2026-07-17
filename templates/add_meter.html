@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block page_title %}Create Meter{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm" style="max-width:780px;">
+
+    <div class="card-header bg-success text-white">
+        <i class="bi bi-speedometer"></i> Create Meter
+    </div>
+
+    <div class="card-body">
+
+        <form method="POST">
+
+            <div class="row">
+
+                <div class="col-md-6 mb-3">
+                    <label>Meter Name / ID</label>
+                    <input type="text" name="meter_name" class="form-control" placeholder="e.g. GEN-METER-01" required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Meter Type</label>
+                    <select name="meter_type" class="form-select">
+                        <option>Generation</option>
+                        <option>Import</option>
+                        <option>Export</option>
+                        <option>Sub-Meter</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Location</label>
+                    <input type="text" name="location" class="form-control" placeholder="e.g. Blowing Section">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Installed Date</label>
+                    <input type="date" name="installed_date" class="form-control">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Status</label>
+                    <select name="status" class="form-select">
+                        <option>Active</option>
+                        <option>Inactive</option>
+                        <option>Under Maintenance</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <button class="btn btn-success">
+                <i class="bi bi-save"></i> Save Meter
+            </button>
+
+            <a href="{{ url_for('meters_page') }}" class="btn btn-outline-secondary">Cancel</a>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

@@ -58,7 +58,32 @@
                 <i class="bi bi-boxes"></i> Stock
             </a>
 
-            <a href="{{ url_for('expenses') }}"
+            {% if session.get('role') in ['Admin', 'Manager'] %}
+            <a href="{{ url_for('products_page') }}"
+               class="nav-link {% if request.path.startswith('/products') or request.path.startswith('/add_product') %}active{% endif %}">
+                <i class="bi bi-box2-heart"></i> Products
+            </a>
+
+            <a href="{{ url_for('meters_page') }}"
+               class="nav-link {% if request.path.startswith('/meters') or request.path.startswith('/add_meter') %}active{% endif %}">
+                <i class="bi bi-speedometer"></i> Meters
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('attendance_page') }}"
+               class="nav-link {% if request.path.startswith('/attendance') %}active{% endif %}">
+                <i class="bi bi-calendar-check"></i> Attendance
+            </a>
+
+            {% if session.get('role') == 'Admin' %}
+            <a href="{{ url_for('employees_page') }}"
+               class="nav-link {% if request.path.startswith('/employees') or request.path.startswith('/add_employee') %}active{% endif %}">
+                <i class="bi bi-people"></i> Employees
+            </a>
+            {% endif %}
+
+            <!-- ✅ FIXED -->
+            <a href="{{ url_for('expenses_page') }}"
                class="nav-link {% if request.path.startswith('/expenses') or request.path.startswith('/add_expense') %}active{% endif %}">
                 <i class="bi bi-cash-coin"></i> Expenses
             </a>
@@ -89,12 +114,18 @@
         <header class="topbar">
 
             <div class="d-flex align-items-center gap-2">
-                <button class="sidebar-toggle" id="sidebarToggle"><i class="bi bi-list"></i></button>
-                <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="page-title">
+                    {% block page_title %}Dashboard{% endblock %}
+                </h1>
             </div>
 
             <div class="user-chip">
-                <div class="avatar">{{ (session.get('username') or 'A')[0]|upper }}</div>
+                <div class="avatar">
+                    {{ (session.get('username') or 'A')[0]|upper }}
+                </div>
                 <span>{{ session.get('username', 'Admin') }}</span>
                 <i class="bi bi-chevron-down caret"></i>
             </div>
@@ -106,7 +137,9 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} py-2">{{ message }}</div>
+                        <div class="alert alert-{{ category }} py-2">
+                            {{ message }}
+                        </div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
@@ -125,19 +158,19 @@
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebarBackdrop');
     const mainWrap = document.querySelector('.main-wrap');
+
     const isMobile = () => window.innerWidth <= 900;
 
-    // Mobile: sidebar is an off-canvas drawer (hidden by default, opens over content)
     function openMobileDrawer() {
         sidebar.classList.add('open');
         backdrop.classList.add('show');
     }
+
     function closeMobileDrawer() {
         sidebar.classList.remove('open');
         backdrop.classList.remove('show');
     }
 
-    // Desktop: sidebar can be collapsed to give the content more width
     function toggleDesktopSidebar() {
         sidebar.classList.toggle('collapsed');
         mainWrap.classList.toggle('full');
@@ -146,19 +179,26 @@
     if (toggle) {
         toggle.addEventListener('click', () => {
             if (isMobile()) {
-                sidebar.classList.contains('open') ? closeMobileDrawer() : openMobileDrawer();
+                if (sidebar.classList.contains('open')) {
+                    closeMobileDrawer();
+                } else {
+                    openMobileDrawer();
+                }
             } else {
                 toggleDesktopSidebar();
             }
         });
     }
+
     if (backdrop) {
         backdrop.addEventListener('click', closeMobileDrawer);
     }
-    // Close drawer automatically after tapping a nav link on mobile
-    document.querySelectorAll('.sidebar .nav-link').forEach(function (link) {
-        link.addEventListener('click', function () {
-            if (isMobile()) closeMobileDrawer();
+
+    document.querySelectorAll('.sidebar .nav-link').forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (isMobile()) {
+                closeMobileDrawer();
+            }
         });
     });
 </script>
