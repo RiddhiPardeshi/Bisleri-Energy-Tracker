@@ -1,7 +1,8 @@
 venv/
+.env
 __pycache__/
 *.pyc
-instance/
-.env
-.vscode/
-.idea/
+.vs/
+*.sqlite3
+*.db
+*.lnk
