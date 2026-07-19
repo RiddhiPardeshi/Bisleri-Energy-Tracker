@@ -39,15 +39,18 @@
             <div class="section-label"><i class="bi bi-lightning-charge"></i> Generation Meter</div>
             <div class="row">
                 <div class="col-md-4">
-                    <label>Opening (auto)</label>
+                    <label>Opening {% if last_entry %}(auto){% endif %}</label>
                     <input type="number" step="0.01" id="generation_opening" name="generation_opening"
-                           class="form-control bg-light mono" readonly
-                           value="{{ (last_entry.generation_closing if last_entry else 0) or 0 }}">
+                           class="form-control mono{% if last_entry %} bg-light{% endif %}"
+                           {% if last_entry %}readonly{% else %}required autocomplete="off"
+                           style="pointer-events:auto; user-select:text; background-color:#fff;"{% endif %}
+                           value="{{ form_data.get('generation_opening') if not last_entry else (last_entry.generation_closing or 0) }}">
                 </div>
                 <div class="col-md-4">
                     <label>Closing</label>
                     <input type="number" step="0.01" id="generation_closing" name="generation_closing"
                            class="form-control mono" required autocomplete="off"
+                           style="pointer-events:auto; user-select:text; background-color:#fff;"
                            value="{{ form_data.get('generation_closing', '') }}">
                 </div>
                 <div class="col-md-4">
@@ -60,15 +63,18 @@
             <div class="section-label"><i class="bi bi-box-arrow-in-down"></i> Import Meter</div>
             <div class="row">
                 <div class="col-md-4">
-                    <label>Opening (auto)</label>
+                    <label>Opening {% if last_entry %}(auto){% endif %}</label>
                     <input type="number" step="0.01" id="import_opening" name="import_opening"
-                           class="form-control bg-light mono" readonly
-                           value="{{ (last_entry.import_closing if last_entry else 0) or 0 }}">
+                           class="form-control mono{% if last_entry %} bg-light{% endif %}"
+                           {% if last_entry %}readonly{% else %}required autocomplete="off"
+                           style="pointer-events:auto; user-select:text; background-color:#fff;"{% endif %}
+                           value="{{ form_data.get('import_opening') if not last_entry else (last_entry.import_closing or 0) }}">
                 </div>
                 <div class="col-md-4">
                     <label>Closing</label>
                     <input type="number" step="0.01" id="import_closing" name="import_closing"
                            class="form-control mono" required autocomplete="off"
+                           style="pointer-events:auto; user-select:text; background-color:#fff;"
                            value="{{ form_data.get('import_closing', '') }}">
                 </div>
                 <div class="col-md-4">
@@ -81,15 +87,18 @@
             <div class="section-label"><i class="bi bi-box-arrow-up"></i> Export Meter</div>
             <div class="row">
                 <div class="col-md-4">
-                    <label>Opening (auto)</label>
+                    <label>Opening {% if last_entry %}(auto){% endif %}</label>
                     <input type="number" step="0.01" id="export_opening" name="export_opening"
-                           class="form-control bg-light mono" readonly
-                           value="{{ (last_entry.export_closing if last_entry else 0) or 0 }}">
+                           class="form-control mono{% if last_entry %} bg-light{% endif %}"
+                           {% if last_entry %}readonly{% else %}required autocomplete="off"
+                           style="pointer-events:auto; user-select:text; background-color:#fff;"{% endif %}
+                           value="{{ form_data.get('export_opening') if not last_entry else (last_entry.export_closing or 0) }}">
                 </div>
                 <div class="col-md-4">
                     <label>Closing</label>
                     <input type="number" step="0.01" id="export_closing" name="export_closing"
                            class="form-control mono" required autocomplete="off"
+                           style="pointer-events:auto; user-select:text; background-color:#fff;"
                            value="{{ form_data.get('export_closing', '') }}">
                 </div>
                 <div class="col-md-4">
@@ -367,8 +376,12 @@ calculate();
 // Auto-focus on Generation Closing when the page loads
 // -----------------------------------------------------
 window.addEventListener("DOMContentLoaded", function () {
+    const genOpening = document.getElementById("generation_opening");
     const genClosing = document.getElementById("generation_closing");
-    if (genClosing) {
+
+    if (genOpening && !genOpening.readOnly) {
+        genOpening.focus();
+    } else if (genClosing) {
         genClosing.focus();
     }
 });

@@ -62,6 +62,21 @@ def today_start_datetime():
     return datetime.combine(date.today(), datetime.min.time())
 
 
+def current_owner_id():
+    """Every piece of plant data (entries, stock, products, meters,
+    expenses, attendance, employees) belongs to one Owner/Admin account.
+
+    - When an Admin (owner) is logged in, they ARE the owner, so
+      owner_id == their own admin_id.
+    - When an Employee is logged in, owner_id is the Admin who created
+      that employee (stored on the employee record at creation time).
+
+    This is what keeps two different Owner accounts from ever seeing
+    each other's data.
+    """
+    return session.get("owner_id")
+
+
 # -----------------------------
 # Login Required Decorator
 # -----------------------------
@@ -114,14 +129,16 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        # "owner" or "employee" - which collection to check.
-        # Defaults to "owner" so old bookmarked forms still work.
-        login_as = request.form.get("login_as", "owner")
+        # Single login form now - no owner/employee toggle.
+        # Usernames are unique across both collections (enforced when
+        # an employee is created), so we can safely check both here
+        # without any ambiguity about which account is which.
+        account = admins.find_one({"username": username})
+        login_as = "owner"
 
-        if login_as == "employee":
+        if not account:
             account = employees.find_one({"username": username})
-        else:
-            account = admins.find_one({"username": username})
+            login_as = "employee"
 
         if account and verify_password(account["password"], password):
 
@@ -131,13 +148,17 @@ def login():
             session["role"] = account.get("role", "Admin")
             session["login_as"] = login_as
 
+            if login_as == "employee":
+                # Employees belong to whichever Owner/Admin created them.
+                session["owner_id"] = account.get("owner_id")
+            else:
+                # An Owner/Admin account IS its own owner.
+                session["owner_id"] = str(account["_id"])
+
             flash("Login Successful", "success")
             return redirect(url_for("dashboard"))
 
-        if login_as == "employee":
-            flash("Invalid employee username or password.", "danger")
-        else:
-            flash("Invalid owner username or password.", "danger")
+        flash("Invalid username or password.", "danger")
 
         return redirect(url_for("login"))
 
@@ -204,7 +225,10 @@ def dashboard():
 
     today_dt = today_start_datetime()
 
-    today_entry = daily_entries.find_one({"date": today_dt})
+    today_entry = daily_entries.find_one({
+        "date": today_dt,
+        "owner_id": current_owner_id()
+    })
 
     total_production = today_entry.get("production", 0) if today_entry else 0
     total_consumption = today_entry.get("consumption", 0) if today_entry else 0
@@ -233,21 +257,35 @@ def dashboard():
 @login_required
 def add_entry():
 
-    last_entry_cursor = daily_entries.find().sort("date", -1).limit(1)
+    owner_id = current_owner_id()
+
+    last_entry_cursor = daily_entries.find(
+        {"owner_id": owner_id}
+    ).sort("date", -1).limit(1)
     last_entry = next(last_entry_cursor, None)
 
     today_str = date.today().strftime("%Y-%m-%d")
 
     # Auto-generated batch number
-    next_batch_no = f"BSL-{daily_entries.count_documents({}) + 1:04d}"
+    next_batch_no = f"BSL-{daily_entries.count_documents({'owner_id': owner_id}) + 1:04d}"
 
     if request.method == "POST":
 
         error = None
 
-        generation_opening = (last_entry.get("generation_closing", 0.0) if last_entry else 0.0) or 0.0
-        import_opening = (last_entry.get("import_closing", 0.0) if last_entry else 0.0) or 0.0
-        export_opening = (last_entry.get("export_closing", 0.0) if last_entry else 0.0) or 0.0
+        # On the very first entry ever, there's no previous closing
+        # reading to inherit from - so the user types their own
+        # starting Opening values. From the second entry onward,
+        # Opening auto-fills from the previous entry's Closing and
+        # stays locked (see add_entry.html).
+        if last_entry:
+            generation_opening = last_entry.get("generation_closing", 0.0) or 0.0
+            import_opening = last_entry.get("import_closing", 0.0) or 0.0
+            export_opening = last_entry.get("export_closing", 0.0) or 0.0
+        else:
+            generation_opening = parse_float(request.form.get("generation_opening"), 0.0) or 0.0
+            import_opening = parse_float(request.form.get("import_opening"), 0.0) or 0.0
+            export_opening = parse_float(request.form.get("export_opening"), 0.0) or 0.0
 
         generation_closing = parse_float(request.form.get("generation_closing"), None)
         import_closing = parse_float(request.form.get("import_closing"), None)
@@ -366,7 +404,9 @@ def add_entry():
             "shrink_sticker_rs": shrink_sticker_rs,
 
             "total_loss_units": total_loss_units,
-            "total_loss_rs": total_loss_rs
+            "total_loss_rs": total_loss_rs,
+
+            "owner_id": owner_id
         }
 
         # insert_one only ADDS a new document - existing plant data
@@ -396,7 +436,9 @@ def add_entry():
 @login_required
 def records():
 
-    entries = list(daily_entries.find().sort("date", -1))
+    entries = list(
+        daily_entries.find({"owner_id": current_owner_id()}).sort("date", -1)
+    )
 
     return render_template(
         "records.html",
@@ -411,7 +453,7 @@ def records():
 @login_required
 def stock():
 
-    stock_items = list(stocks.find())
+    stock_items = list(stocks.find({"owner_id": current_owner_id()}))
 
     return render_template(
         "stock.html",
@@ -438,7 +480,9 @@ def add_stock():
             "stock_in": stock_in,
             "stock_out": stock_out,
             "closing_stock": closing,
-            "unit": request.form.get("unit", "")
+            "unit": request.form.get("unit", ""),
+
+            "owner_id": current_owner_id()
         }
 
         # insert_one only ADDS a new document - existing stock records
@@ -459,7 +503,7 @@ def add_stock():
 @login_required
 def analysis():
 
-    entries = list(daily_entries.find())
+    entries = list(daily_entries.find({"owner_id": current_owner_id()}))
 
     total_records = len(entries)
 
@@ -509,7 +553,9 @@ def add_expense():
             ),
             "description": request.form.get("description", ""),
             "amount": parse_float(request.form.get("amount")),
-            "payment_mode": request.form.get("payment_mode", "")
+            "payment_mode": request.form.get("payment_mode", ""),
+
+            "owner_id": current_owner_id()
         }
 
         # insert_one only ADDS a new document - existing expense
@@ -528,7 +574,9 @@ def add_expense():
 @login_required
 def expenses_page():
 
-    expense_list = list(expenses.find().sort("date", -1))
+    expense_list = list(
+        expenses.find({"owner_id": current_owner_id()}).sort("date", -1)
+    )
 
     total_expense = sum(e.get("amount") or 0 for e in expense_list)
 
@@ -547,7 +595,9 @@ def expenses_page():
 @role_required("Admin")
 def employees_page():
 
-    employee_list = list(employees.find().sort("name", 1))
+    employee_list = list(
+        employees.find({"owner_id": current_owner_id()}).sort("name", 1)
+    )
 
     return render_template(
         "employees.html",
@@ -580,6 +630,10 @@ def add_employee():
             designation=request.form.get("designation", "")
         )
 
+        # Tie this employee to the owner who created them, so their
+        # login later scopes to this same owner's data.
+        employee["owner_id"] = current_owner_id()
+
         employees.insert_one(employee)
 
         flash("Employee Added Successfully", "success")
@@ -598,8 +652,14 @@ def attendance_page():
 
     today_str = date.today().strftime("%Y-%m-%d")
 
-    records_list = list(attendance.find().sort("date", -1).limit(200))
-    employee_list = list(employees.find().sort("name", 1))
+    owner_id = current_owner_id()
+
+    records_list = list(
+        attendance.find({"owner_id": owner_id}).sort("date", -1).limit(200)
+    )
+    employee_list = list(
+        employees.find({"owner_id": owner_id}).sort("name", 1)
+    )
 
     return render_template(
         "attendance.html",
@@ -624,7 +684,9 @@ def add_attendance():
             "employee_name": employee_name,
             "date": datetime.strptime(att_date, "%Y-%m-%d") if att_date else today_start_datetime(),
             "status": request.form.get("status", "Present"),
-            "remarks": request.form.get("remarks", "")
+            "remarks": request.form.get("remarks", ""),
+
+            "owner_id": current_owner_id()
         }
 
         # insert_one only ADDS a new document - existing attendance
@@ -646,7 +708,9 @@ def add_attendance():
 @role_required("Admin", "Manager")
 def products_page():
 
-    product_list = list(products.find().sort("product_name", 1))
+    product_list = list(
+        products.find({"owner_id": current_owner_id()}).sort("product_name", 1)
+    )
 
     return render_template(
         "products.html",
@@ -666,7 +730,9 @@ def add_product():
             "category": request.form.get("category", ""),
             "unit": request.form.get("unit", ""),
             "unit_price": parse_float(request.form.get("unit_price")),
-            "description": request.form.get("description", "")
+            "description": request.form.get("description", ""),
+
+            "owner_id": current_owner_id()
         }
 
         # insert_one only ADDS a new document - existing product
@@ -688,7 +754,9 @@ def add_product():
 @role_required("Admin", "Manager")
 def meters_page():
 
-    meter_list = list(meters.find().sort("meter_name", 1))
+    meter_list = list(
+        meters.find({"owner_id": current_owner_id()}).sort("meter_name", 1)
+    )
 
     return render_template(
         "meters.html",
@@ -708,7 +776,9 @@ def add_meter():
             "meter_type": request.form.get("meter_type", ""),
             "location": request.form.get("location", ""),
             "installed_date": request.form.get("installed_date", ""),
-            "status": request.form.get("status", "Active")
+            "status": request.form.get("status", "Active"),
+
+            "owner_id": current_owner_id()
         }
 
         # insert_one only ADDS a new document - existing meter
@@ -729,7 +799,11 @@ def add_meter():
 @login_required
 def prediction():
 
-    entries = list(daily_entries.find().sort("date", 1))
+    owner_id = current_owner_id()
+
+    entries = list(
+        daily_entries.find({"owner_id": owner_id}).sort("date", 1)
+    )
 
     if len(entries) == 0:
         return render_template(
@@ -770,7 +844,7 @@ def prediction():
     average_daily_loss = total_loss / len(entries)
     predicted_loss = average_daily_loss * 30
 
-    expense_list = list(expenses.find())
+    expense_list = list(expenses.find({"owner_id": owner_id}))
     total_expense = sum(e.get("amount") or 0 for e in expense_list)
 
     if len(expense_list) > 0:
